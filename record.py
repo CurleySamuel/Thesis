@@ -1,5 +1,9 @@
 from termcolor import colored
+from datetime import datetime
 import csv
+
+unwanted_fields = ["''", "SHOWINGINSTRUCTIONS", "OFFICEPHONE", "STATUS", "AGENTNAME",
+                   "EXPIREDATE", "PHOTOURL", "OFFICENAME", "HOUSENUM1", "HOUSENUM2", "STREETNAME"]
 
 
 class Record:
@@ -46,7 +50,7 @@ class Record:
     # string ("Lexington")
     high_school = "HIGHSCHOOL"
     # string ("Tankless")
-    hot_water = "Hot water"
+    hot_water = "Hot Water"
     # string ("--")
     insulation = "Insulation"
     # string ("Security System")
@@ -78,7 +82,7 @@ class Record:
     # string
     address = "ADDRESS"
     # datetime
-    expire_date = "EXPIREDATE"
+    expire_date = "EXPIREDDATE"
     # datetime
     list_date = "LISTDATE"
     # int
@@ -89,17 +93,91 @@ class Record:
     zip_code = "ZIP"
 
     def import_database_row(self, input_dict):
-        pass
+        member_vars = [attr for attr in dir(self) if not callable(
+            getattr(self, attr)) and not attr.startswith("__")]
+        for var in member_vars:
+            setattr(self, var, input_dict[var])
+        for var in ["age", "beds", "days_on_market", "days_til_offer", "fireplaces", "garage", "level", "list_price", "lot_size", "sold_price", "sqft", "mls_num", "zip_code"]:
+            setattr(self, var, int(float(getattr(self, var))))
+        for var in ["baths"]:
+            setattr(self, var, float(getattr(self, var)))
+        for var in ["basement"]:
+            setattr(self, var, getattr(self, var) == "True")
+        for var in ["sold_date", "expire_date", "list_date"]:
+            setattr(self, var, datetime.strptime(
+                getattr(self, var), "%Y-%m-%d %H:%M:%S"))
+        return self
 
     def import_file_row(self, input_dict):
-        pass
+        # Purge unwanted fields
+        for field in unwanted_fields:
+            input_dict.pop(field, None)
+
+        # Pull secondary "other features" into primary fields
+        other = input_dict.pop("OTHERFEATURES", None)
+        if other is not None:
+            other = other.split(';')
+            for field in other:
+                try:
+                    split = field.split(':')
+                    input_dict[split[0]] = split[1]
+                except IndexError:
+                    pass
+
+        # Geocode the address
+
+        # Set all member variables
+        member_vars = [attr for attr in dir(self) if not callable(
+            getattr(self, attr)) and not attr.startswith("__")]
+        for var in member_vars:
+            setattr(self, var, input_dict[getattr(self, var)])
+        for var in ["age", "beds", "days_on_market", "days_til_offer", "fireplaces", "garage", "level", "list_price", "lot_size", "sold_price", "sqft", "mls_num", "zip_code"]:
+            # Convert appropriate variables to ints
+            try:
+                setattr(self, var, int(float(getattr(self, var))))
+            except Exception:
+                if var == "level":
+                    setattr(self, var, 1)
+                else:
+                    print colored("Failed int conversion. Variable: {}, Value: {}".format(var, getattr(self, var)), "red")
+        for var in ["baths"]:
+            # Convert appropriate variables to floats
+            try:
+                setattr(self, var, float(getattr(self, var)))
+            except Exception:
+                print colored("Failed float conversion. Variable: {}, Value: {}".format(var, getattr(self, var)), "red")
+        for var in ["basement"]:
+            # Convert appropriate variables to booleans
+            try:
+                setattr(self, var, getattr(self, var) == "Yes")
+            except Exception:
+                print colored("Failed boolean conversion. Variable: {}, Value: {}".format(var, getattr(self, var)), "red")
+        for var in ["sold_date", "expire_date", "list_date"]:
+            try:
+                setattr(
+                    self, var, datetime.strptime(getattr(self, var), "%m/%d/%Y"))
+            except Exception:
+                if var == "expire_date" and getattr(self, var) == "":
+                    setattr(self, var, datetime(2016, 1, 1))
+                else:
+                    print colored("Failed datetime conversion. Variable: {}, Value: {}".format(var, getattr(self, var)), "red")
+        # Return Record object
+        return self
+
+    def to_dict(self):
+        temp = {}
+        field_names = [attr for attr in dir(self) if not callable(
+            getattr(self, attr)) and not attr.startswith("__")]
+        for var in field_names:
+            temp[var] = getattr(self, var)
+        return temp
 
 
 class Records:
 
     records = []
 
-    def __init__(self, database_file="database.json"):
+    def __init__(self, database_file="database.csv"):
         try:
             with open(database_file) as f:
                 print colored("Discovered database file", "green")
@@ -121,10 +199,18 @@ class Records:
                     self.records.append(Record().import_file_row(row))
                 print colored("Successfully processed {} items.".format(len(self.records) - old_record_count, "green"))
         except IOError:
-            print colored("No such file exists", "red")
+            print colored("File {} does not exist.".format(input_file), "red")
 
-    def export_to_file(self, overwrite=False, database_file="database.json"):
-        pass
+    def export_to_file(self, database_file="database.csv"):
+        print colored("Writing {} records to database.".format(len(self.records)), "green")
+        fieldnames = [attr for attr in dir(Record) if not callable(
+            getattr(Record, attr)) and not attr.startswith("__")]
+        with open(database_file, 'w') as db:
+            writer = csv.DictWriter(db, fieldnames=fieldnames, delimiter='\t')
+            writer.writeheader()
+            for record in self.records:
+                writer.writerow(record.to_dict())
+        print colored("Records written.", "green")
 
     def close(self):
         self.export_to_file()
