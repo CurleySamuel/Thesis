@@ -1,6 +1,9 @@
-from termcolor import colored
 from datetime import datetime
 import csv
+import pickle
+import sys
+from geopy.geocoders import Nominatim
+from time import sleep
 
 unwanted_fields = ["''", "SHOWINGINSTRUCTIONS", "OFFICEPHONE", "STATUS", "AGENTNAME",
                    "EXPIREDATE", "PHOTOURL", "OFFICENAME", "HOUSENUM1", "HOUSENUM2", "STREETNAME"]
@@ -78,6 +81,14 @@ class Record:
     # int
     sqft = "SQFT"
 
+    # -- Calculated metrics --
+
+    lat = None
+    lng = None
+    full_address = None
+    bounding_box = None
+    housing_type = None
+
     # -- Non-predictive metrics --
     # string
     address = "ADDRESS"
@@ -92,23 +103,7 @@ class Record:
     # int
     zip_code = "ZIP"
 
-    def import_database_row(self, input_dict):
-        member_vars = [attr for attr in dir(self) if not callable(
-            getattr(self, attr)) and not attr.startswith("__")]
-        for var in member_vars:
-            setattr(self, var, input_dict[var])
-        for var in ["age", "beds", "days_on_market", "days_til_offer", "fireplaces", "garage", "level", "list_price", "lot_size", "sold_price", "sqft", "mls_num", "zip_code"]:
-            setattr(self, var, int(float(getattr(self, var))))
-        for var in ["baths"]:
-            setattr(self, var, float(getattr(self, var)))
-        for var in ["basement"]:
-            setattr(self, var, getattr(self, var) == "True")
-        for var in ["sold_date", "expire_date", "list_date"]:
-            setattr(self, var, datetime.strptime(
-                getattr(self, var), "%Y-%m-%d %H:%M:%S"))
-        return self
-
-    def import_file_row(self, input_dict):
+    def __init__(self, input_dict):
         # Purge unwanted fields
         for field in unwanted_fields:
             input_dict.pop(field, None)
@@ -124,11 +119,9 @@ class Record:
                 except IndexError:
                     pass
 
-        # Geocode the address
-
         # Set all member variables
         member_vars = [attr for attr in dir(self) if not callable(
-            getattr(self, attr)) and not attr.startswith("__")]
+            getattr(self, attr)) and not attr.startswith("__") and getattr(self, attr) is not None]
         for var in member_vars:
             setattr(self, var, input_dict[getattr(self, var)])
         for var in ["age", "beds", "days_on_market", "days_til_offer", "fireplaces", "garage", "level", "list_price", "lot_size", "sold_price", "sqft", "mls_num", "zip_code"]:
@@ -139,19 +132,19 @@ class Record:
                 if var == "level":
                     setattr(self, var, 1)
                 else:
-                    print colored("Failed int conversion. Variable: {}, Value: {}".format(var, getattr(self, var)), "red")
+                    print "Failed int conversion. Variable: {}, Value: {}".format(var, getattr(self, var))
         for var in ["baths"]:
             # Convert appropriate variables to floats
             try:
                 setattr(self, var, float(getattr(self, var)))
             except Exception:
-                print colored("Failed float conversion. Variable: {}, Value: {}".format(var, getattr(self, var)), "red")
+                print "Failed float conversion. Variable: {}, Value: {}".format(var, getattr(self, var))
         for var in ["basement"]:
             # Convert appropriate variables to booleans
             try:
                 setattr(self, var, getattr(self, var) == "Yes")
             except Exception:
-                print colored("Failed boolean conversion. Variable: {}, Value: {}".format(var, getattr(self, var)), "red")
+                print "Failed boolean conversion. Variable: {}, Value: {}".format(var, getattr(self, var))
         for var in ["sold_date", "expire_date", "list_date"]:
             try:
                 setattr(
@@ -160,9 +153,7 @@ class Record:
                 if var == "expire_date" and getattr(self, var) == "":
                     setattr(self, var, datetime(2016, 1, 1))
                 else:
-                    print colored("Failed datetime conversion. Variable: {}, Value: {}".format(var, getattr(self, var)), "red")
-        # Return Record object
-        return self
+                    print "Failed datetime conversion. Variable: {}, Value: {}".format(var, getattr(self, var))
 
     def to_dict(self):
         temp = {}
@@ -175,42 +166,93 @@ class Record:
 
 class Records:
 
-    records = []
+    records = {}
+    geolocator = Nominatim()
 
-    def __init__(self, database_file="database.csv"):
+    def __init__(self, store_file="data.dat"):
         try:
-            with open(database_file) as f:
-                print colored("Discovered database file", "green")
-                reader = csv.DictReader(f, delimiter='\t')
-                for row in reader:
-                    self.records.append(Record().import_database_row(row))
-                print colored("\tSuccessfully imported {} records".format(len(self.records)), "green")
+            with open(store_file, 'rb') as f:
+                self.records = pickle.load(f)
+                print "{} records imported from store file '{}'.".format(len(self.records), store_file)
         except IOError:
-            print colored("No database file found", "red")
+            print "No store file found."
 
     def import_from_file(self, input_file):
         try:
             with open(input_file) as f:
-                print colored("Importing records from file {}".format(input_file), "green")
+                print "Importing records from file '{}'".format(input_file)
                 old_record_count = len(self.records)
                 reader = csv.DictReader(f, delimiter='\t')
                 for row in reader:
-                    print colored("\tProcessing record {}".format(len(self.records) - old_record_count), "green") + "\r",
-                    self.records.append(Record().import_file_row(row))
-                print colored("Successfully processed {} items.".format(len(self.records) - old_record_count, "green"))
+                    new_record = Record(row)
+                    self.records[new_record.mls_num] = new_record
+                new_record_count = len(self.records) - old_record_count
+                print "\tImported {} new records.".format(new_record_count)
+                self._get_existing_geocoding()
+                self._geocode_new_records()
         except IOError:
-            print colored("File {} does not exist.".format(input_file), "red")
+            print "File '{}' does not exist.".format(input_file)
 
-    def export_to_file(self, database_file="database.csv"):
-        print colored("Writing {} records to database.".format(len(self.records)), "green")
-        fieldnames = [attr for attr in dir(Record) if not callable(
-            getattr(Record, attr)) and not attr.startswith("__")]
-        with open(database_file, 'w') as db:
-            writer = csv.DictWriter(db, fieldnames=fieldnames, delimiter='\t')
-            writer.writeheader()
-            for record in self.records:
-                writer.writerow(record.to_dict())
-        print colored("Records written.", "green")
+    def _get_existing_geocoding(self):
+        file_name = "property_geocodes.csv"
+        try:
+            with open(file_name, 'r') as f:
+                reader = csv.DictReader(f)
+                counter = 0
+                for row in reader:
+                    mls = int(row["MLS_NUM"])
+                    lat = float(row["ADDR_LAT"])
+                    lng = float(row["ADDR_LON"])
+                    if mls in self.records.keys() and self.records[mls].lat is None:
+                        self.records[mls].lat = lat
+                        self.records[mls].lng = lng
+        except IOError:
+            print "File '{}' does not exist.".format(file_name)
+        except ValueError as e:
+            print "Bad input data:", e
+
+    def _geocode_new_records(self):
+        records_to_process = [
+            mls_num for mls_num in self.records.keys() if self.records[mls_num].lat is None]
+        print "\tGeocoding {} new records.".format(len(records_to_process))
+        try:
+            for itr in range(len(records_to_process)):
+                print "\t\t{} / {}".format(itr, len(records_to_process))
+                sys.stdout.write("\033[F")
+                mls_num = records_to_process[itr]
+                """
+                constructed_addr = "{}, {} {}".format(
+                    self.records[mls_num].address, self.records[mls_num].city, self.records[mls_num].state)
+                location = self.geolocator.geocode(constructed_addr)
+                try:
+                    self.records[mls_num].lat = location.latitude
+                    self.records[mls_num].lng = location.longitude
+                    self.records[mls_num].full_address = location.address
+                    self.records[mls_num].bounding_box = [
+                        float(elem) for elem in location.raw["boundingbox"]]
+                    self.records[mls_num].housing_type = location.raw["type"]
+                except Exception:
+                    import ipdb
+                    ipdb.set_trace()
+                """
+        except Exception as e:
+            print "Geocoding hit the exception '{}'\nSaving records and exiting.".format(e)
+            self.export_to_file()
+            sys.exit()
+
+    def export_to_file(self, store_file="data.dat"):
+        try:
+            with open(store_file, 'wb') as f:
+                pickle.dump(self.records, f)
+                print "{} records written to store file '{}'.".format(len(self.records), store_file)
+        except IOError:
+            if store_file != "backup_data.dat":
+                print "Failed to write to store file '{}'. Attempting write to backup location."
+                self.export_to_file(store_file="backup_data.dat")
+            else:
+                print "Failed to write to backup location."
+                import ipdb
+                ipdb.set_trace()
 
     def close(self):
         self.export_to_file()
