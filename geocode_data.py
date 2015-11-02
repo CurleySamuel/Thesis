@@ -4,7 +4,7 @@ from collections import defaultdict
 from os import listdir, getcwd, path
 import time
 from datetime import timedelta
-from geopy.geocoders import ArcGIS
+from geopy.geocoders import Nominatim
 
 start = time.time()
 output_directory = "geocoded_data/"
@@ -94,14 +94,10 @@ def write_to_file(final_records):
                 writer.writerow(final_records[input_file][mls])
 
 
-geolocator = ArcGIS(timeout=None)
+geolocator = Nominatim(timeout=None)
 
 
 def geocode(record):
-    if record["ADDRESS"] == "Lot C Fern Street":
-        record["ADDRESS"] = "Fern Street"
-    elif record["ADDRESS"] == "Lot A Fitzgerald Ave":
-        record["ADDRESS"] = "Fitzgerald Ave"
     constructed_addr = "{}, {} {}".format(
         record["ADDRESS"], record["CITY"], record["STATE"])
     location = geolocator.geocode(constructed_addr)
