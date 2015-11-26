@@ -3,6 +3,9 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 from sklearn.cross_validation import cross_val_score
+from time import time
+from operator import itemgetter
+from scipy.stats import randint as sp_randint
 
 
 def main():
@@ -11,10 +14,15 @@ def main():
     data, data_original = scalar_data(data)
     data_train_x, data_test_x, data_train_y, data_test_y = split_data(data)
     print "\nSize of training set: {}\nSize of testing set: {}\nNumber of features: {}\n".format(len(data_train_y), len(data_test_y), len(data_test_x.columns.values))
-    #simple_random_forest(data_train_x, data_test_x, data_train_y, data_test_y)
-    # simple_extremely_random_trees(
-    #    data_train_x, data_test_x, data_train_y, data_test_y)
+    """
+    simple_random_forest(
+        data_train_x, data_test_x, data_train_y, data_test_y)
+    simple_extremely_random_trees(
+        data_train_x, data_test_x, data_train_y, data_test_y)
     simple_gradient_boosting(
+        data_train_x, data_test_x, data_train_y, data_test_y)
+    """
+    fine_tune_gradient_boosting_hyper_params(
         data_train_x, data_test_x, data_train_y, data_test_y)
 
 
@@ -57,7 +65,12 @@ def simple_gradient_boosting(data_train_x, data_test_x, data_train_y, data_test_
     print "-- {} --".format("Gradient Boosting Regression using all but remarks")
     rf = GradientBoostingRegressor(
         n_estimators=500,
-        learning_rate=0.05
+        subsample=1.0,
+        learning_rate=0.1,
+        min_samples_leaf=9,
+        min_samples_split=8,
+        max_features=8,
+        max_depth=8
     )
     rf.fit(data_train_x, data_train_y)
     sample_predictions(rf.predict(data_test_x), data_test_y)
@@ -86,6 +99,54 @@ def simple_gradient_boosting(data_train_x, data_test_x, data_train_y, data_test_
     plt.ylabel('Deviance')
     plt.show()
     """
+
+
+def report(grid_scores, n_top=3):
+    top_scores = sorted(grid_scores, key=itemgetter(1), reverse=True)[:n_top]
+    for i, score in enumerate(top_scores):
+        print("Model with rank: {0}".format(i + 1))
+        print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
+              score.mean_validation_score,
+              np.std(score.cv_validation_scores)))
+        print("Parameters: {0}".format(score.parameters))
+        print("")
+
+
+def fine_tune_gradient_boosting_hyper_params(data_train_x, data_test_x, data_train_y, data_test_y):
+    from sklearn.ensemble import GradientBoostingRegressor
+    from sklearn.grid_search import RandomizedSearchCV
+    print "-- {} --".format("Fine-tuning Gradient Boosting Regression")
+    rf = GradientBoostingRegressor(
+        n_estimators=500
+    )
+    param_dist = {
+        "learning_rate": [0.01, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2],
+        "max_depth": sp_randint(1, 10),
+        "min_samples_split": sp_randint(1, 11),
+        "min_samples_leaf": sp_randint(1, 11),
+        "subsample": [0.5, 0.7, 0.9, 1.0],
+        "max_features": sp_randint(1, 11)
+    }
+    n_iter_search = 50
+    random_search = RandomizedSearchCV(
+        rf,
+        param_distributions=param_dist,
+        n_iter=n_iter_search,
+        n_jobs=-1,
+        cv=5,
+        verbose=2
+    )
+
+    start = time()
+    random_search.fit(data_train_x, data_train_y)
+    print("RandomizedSearchCV took %.2f seconds for %d candidates"
+          " parameter settings." % ((time() - start), n_iter_search))
+    report(random_search.grid_scores_)
+    cross_validated_scores = cross_val_score(
+        random_search, data_test_x, data_test_y, cv=5)
+    print "-- Rank 1 --\nMSE Accuracy: {}".format(score)
+    print "MSE Across 5 Folds: {}".format(cross_validated_scores)
+    print "95%% Confidence Interval: %0.3f (+/- %0.3f)\n" % (cross_validated_scores.mean(), cross_validated_scores.std() * 1.96)
 
 
 def get_data():
