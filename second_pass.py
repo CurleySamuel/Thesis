@@ -19,11 +19,11 @@ def main():
         data_train_x, data_test_x, data_train_y, data_test_y)
     simple_extremely_random_trees(
         data_train_x, data_test_x, data_train_y, data_test_y)
+    """
     simple_gradient_boosting(
         data_train_x, data_test_x, data_train_y, data_test_y)
-    """
-    fine_tune_gradient_boosting_hyper_params(
-        data_train_x, data_test_x, data_train_y, data_test_y)
+    # fine_tune_gradient_boosting_hyper_params(
+    #    data_train_x, data_test_x, data_train_y, data_test_y)
 
 
 def simple_random_forest(data_train_x, data_test_x, data_train_y, data_test_y):
@@ -65,11 +65,11 @@ def simple_gradient_boosting(data_train_x, data_test_x, data_train_y, data_test_
     print "-- {} --".format("Gradient Boosting Regression using all but remarks")
     rf = GradientBoostingRegressor(
         n_estimators=500,
-        subsample=1.0,
-        learning_rate=0.1,
-        min_samples_leaf=9,
-        min_samples_split=8,
-        max_features=8,
+        subsample=0.8,
+        learning_rate=0.09,
+        min_samples_leaf=7,
+        min_samples_split=9,
+        max_features=10,
         max_depth=8
     )
     rf.fit(data_train_x, data_train_y)
@@ -120,21 +120,21 @@ def fine_tune_gradient_boosting_hyper_params(data_train_x, data_test_x, data_tra
         n_estimators=500
     )
     param_dist = {
-        "learning_rate": [0.01, 0.03, 0.05, 0.07, 0.1, 0.15, 0.2],
-        "max_depth": sp_randint(1, 10),
+        "learning_rate": [0.01, 0.03, 0.05, 0.07, 0.09, 0.1, 0.15, 0.2],
+        "max_depth": sp_randint(1, 11),
         "min_samples_split": sp_randint(1, 11),
         "min_samples_leaf": sp_randint(1, 11),
-        "subsample": [0.5, 0.7, 0.9, 1.0],
+        "subsample": [0.2, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         "max_features": sp_randint(1, 11)
     }
-    n_iter_search = 50
+    n_iter_search = 100
     random_search = RandomizedSearchCV(
         rf,
         param_distributions=param_dist,
         n_iter=n_iter_search,
         n_jobs=-1,
         cv=5,
-        verbose=2
+        verbose=1
     )
 
     start = time()
@@ -142,11 +142,6 @@ def fine_tune_gradient_boosting_hyper_params(data_train_x, data_test_x, data_tra
     print("RandomizedSearchCV took %.2f seconds for %d candidates"
           " parameter settings." % ((time() - start), n_iter_search))
     report(random_search.grid_scores_)
-    cross_validated_scores = cross_val_score(
-        random_search, data_test_x, data_test_y, cv=5)
-    print "-- Rank 1 --\nMSE Accuracy: {}".format(score)
-    print "MSE Across 5 Folds: {}".format(cross_validated_scores)
-    print "95%% Confidence Interval: %0.3f (+/- %0.3f)\n" % (cross_validated_scores.mean(), cross_validated_scores.std() * 1.96)
 
 
 def get_data():
