@@ -141,6 +141,7 @@ def dummie_columns_random_forest(train, test):
     # print "-- Feature Importance --"
     # for x in range(len(rf.feature_importances_)):
     #    print predicting_columns[x], rf.feature_importances_[x]
+    """
     feature_importance = rf.feature_importances_
     # make importances relative to max importance
     feature_importance = 100.0 * (feature_importance / feature_importance.max())
@@ -152,6 +153,7 @@ def dummie_columns_random_forest(train, test):
     plt.xlabel('Relative Importance')
     plt.title('Variable Importance')
     plt.show()
+    """
     print "Accuracy: {}\n".format(score)
     return score, predictions
 
