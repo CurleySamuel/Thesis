@@ -2,13 +2,28 @@ import pandas as pd
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
+from sklearn.cross_validation import cross_val_score
+
 
 def main():
     data = get_data()
     data = normalize_data(data)
-    data, data_original = dummy_data(data)
+    data, data_original = scalar_data(data)
     data_train_x, data_test_x, data_train_y, data_test_y = split_data(data)
-    print "Size of training set: {}\nSize of testing set: {}".format(len(data_train_y), len(data_test_y))
+    print "\nSize of training set: {}\nSize of testing set: {}\nNumber of features: {}\n".format(len(data_train_y), len(data_test_y), len(data_test_x.columns.values))
+    simple_random_forest(data_train_x, data_test_x, data_train_y, data_test_y)
+
+
+def simple_random_forest(data_train_x, data_test_x, data_train_y, data_test_y):
+    from sklearn.ensemble import RandomForestRegressor
+    print "-- {} --".format("Random Forest Regression using all but remarks")
+    rf = RandomForestRegressor(n_jobs=-1)
+    rf.fit(data_train_x, data_train_y)
+    sample_predictions(rf.predict(data_test_x), data_test_y)
+    score = rf.score(data_test_x, data_test_y)
+    cross_validated_scores = cross_val_score(rf, data_test_x, data_test_y)
+    print "Accuracy: {}".format(score)
+    print "Cross-validated accuracy: %0.3f (+/- %0.3f)" % (cross_validated_scores.mean(), cross_validated_scores.std() * 2)
 
 
 def get_data():
@@ -30,15 +45,12 @@ def get_data():
     return data
 
 
-
 def normalize_data(data):
     # Drop all the columns that we don't want.
     data = data.drop(['Unnamed: 0', 'EXPIREDDATE', 'COOLING', 'AREA', "SHOWINGINSTRUCTIONS", "OFFICEPHONE", "STATUS",
-                      "OFFICENAME", "HOUSENUM2", "HOUSENUM1", "DTO", "DOM", "JUNIORHIGHSCHOOL", "AGENTNAME", "HIGHSCHOOL", "STREETNAME", "PHOTOURL", "HIGHSCHOOL", "ELEMENTARYSCHOOL"], 1)
-
+                      "OFFICENAME", "HOUSENUM2", "HOUSENUM1", "DTO", "DOM", "JUNIORHIGHSCHOOL", "AGENTNAME", "HIGHSCHOOL", "STREETNAME", "PHOTOURL", "HIGHSCHOOL", "ELEMENTARYSCHOOL", "ADDRESS", "LISTPRICE"], 1)
     # If missing data on number of baths, set it to number of beds / 2.
     data.loc[data['BATHS'].isnull(), 'BATHS'] = data['BEDS'] / 2
-
     # Convert dates into number of days since the latest date.
     for x in ["LISTDATE", "SOLDDATE"]:
         data[x] = (
@@ -46,15 +58,31 @@ def normalize_data(data):
     return data
 
 
-def dummy_data(data):
+def scalar_data(data):
     old_data = data.copy()
-    # Take these unstandardize fields and create 'dummy columns' from them
+
+    # Column 'OTHERFEATURES' contains a semicolon seperated
+    # string of feature:value pairs. We need to parse those for
+    # every row and seperate them into their own columns.
+    sub_columns = ['Basement', 'Fireplaces', 'Roof', 'Floor', 'Appliances', 'Foundation', 'Construction',
+                   'Exterior', 'Exterior Features', 'Insulation', 'Electric', 'Interior Features', 'Hot Water']
+    for sub_column in sub_columns:
+        data[sub_column] = data['OTHERFEATURES'].str.extract(
+            "{}:(.*?);".format(sub_column))
+    data = data.drop('OTHERFEATURES', 1)
+    # Take these unstandardized fields and create 'dummy columns' from them
     # which have a 1 or 0 for each row. The number of dummy columns is equal
     # to the number of distinct possible answers for each column.
     #
     # i.e. PROPTYPE will get split up into (PROPTYPE) SF and (PROPTYPE) MF
-    for var in ["PROPTYPE", "STYLE", "HEATING", "CITY", "LEVEL"]:
-        if var != "LEVEL":
+    sub_columns.extend(
+        ["PROPTYPE", "STYLE", "HEATING", "CITY", "LEVEL", "STATE"])
+    for var in sub_columns:
+        if var == "LEVEL":
+            # let the hate flow through you young padawan.
+            data[var] = data[var].fillna(0.0).replace(
+                to_replace='B', value=1.0).astype(int).astype(str)
+        else:
             # Calling .lower() on an int makes it None.
             data[var] = data[var].str.lower()
         new_data = data[var].str.get_dummies(sep=', ')
@@ -65,9 +93,8 @@ def dummy_data(data):
             left_index=True,
             right_index=True
         )
-        data.drop(var, 1)
-    return data, old_data
-
+        data = data.drop(var, 1)
+    return data._get_numeric_data(), old_data
 
 
 def split_data(data):
@@ -77,19 +104,14 @@ def split_data(data):
     return train_test_split(x, y, test_size=0.25)
 
 
-
-def sample_predictions(actual, *args):
+def sample_predictions(predicted, actual):
     sample_size = 20
     samples = np.random.randint(0, high=len(actual), size=sample_size)
-    for idx in range(len(args)):
-        print '{:^30}'.format(idx),
-    print '{:^30}'.format("List Price"),
+    print '{:^30}'.format("Predicted"),
     print '{:^30}\n'.format("Sale Price")
     for sample in samples:
-        for predictions in args:
-            print '{:^30,}'.format(int(predictions[sample])),
-        print '{:^30,}'.format(int(actual.iloc[[sample]]["LISTPRICE"].values[0])),
-        print '{:^30,}'.format(int(actual.iloc[[sample]]["SOLDPRICE"].values[0]))
+        print '{:^30,}'.format(int(predicted[sample])),
+        print '{:^30,}'.format(int(actual.iloc[[sample]].values[0]))
 
 
 if __name__ == "__main__":
