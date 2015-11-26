@@ -11,19 +11,81 @@ def main():
     data, data_original = scalar_data(data)
     data_train_x, data_test_x, data_train_y, data_test_y = split_data(data)
     print "\nSize of training set: {}\nSize of testing set: {}\nNumber of features: {}\n".format(len(data_train_y), len(data_test_y), len(data_test_x.columns.values))
-    simple_random_forest(data_train_x, data_test_x, data_train_y, data_test_y)
+    #simple_random_forest(data_train_x, data_test_x, data_train_y, data_test_y)
+    # simple_extremely_random_trees(
+    #    data_train_x, data_test_x, data_train_y, data_test_y)
+    simple_gradient_boosting(
+        data_train_x, data_test_x, data_train_y, data_test_y)
 
 
 def simple_random_forest(data_train_x, data_test_x, data_train_y, data_test_y):
     from sklearn.ensemble import RandomForestRegressor
     print "-- {} --".format("Random Forest Regression using all but remarks")
-    rf = RandomForestRegressor(n_jobs=-1)
+    rf = RandomForestRegressor(
+        n_estimators=300,
+        n_jobs=-1
+    )
     rf.fit(data_train_x, data_train_y)
     sample_predictions(rf.predict(data_test_x), data_test_y)
     score = rf.score(data_test_x, data_test_y)
-    cross_validated_scores = cross_val_score(rf, data_test_x, data_test_y)
-    print "Accuracy: {}".format(score)
-    print "Cross-validated accuracy: %0.3f (+/- %0.3f)" % (cross_validated_scores.mean(), cross_validated_scores.std() * 2)
+    cross_validated_scores = cross_val_score(
+        rf, data_test_x, data_test_y, cv=5)
+    print "MSE Accuracy: {}".format(score)
+    print "MSE Across 5 Folds: {}".format(cross_validated_scores)
+    print "95%% Confidence Interval: %0.3f (+/- %0.3f)\n" % (cross_validated_scores.mean(), cross_validated_scores.std() * 1.96)
+
+
+def simple_extremely_random_trees(data_train_x, data_test_x, data_train_y, data_test_y):
+    from sklearn.ensemble import ExtraTreesRegressor
+    print "-- {} --".format("Extremely Randomized Trees Regression using all but remarks")
+    rf = ExtraTreesRegressor(
+        n_estimators=300,
+        n_jobs=-1
+    )
+    rf.fit(data_train_x, data_train_y)
+    sample_predictions(rf.predict(data_test_x), data_test_y)
+    score = rf.score(data_test_x, data_test_y)
+    cross_validated_scores = cross_val_score(
+        rf, data_test_x, data_test_y, cv=5)
+    print "MSE Accuracy: {}".format(score)
+    print "MSE Across 5 Folds: {}".format(cross_validated_scores)
+    print "95%% Confidence Interval: %0.3f (+/- %0.3f)\n" % (cross_validated_scores.mean(), cross_validated_scores.std() * 1.96)
+
+
+def simple_gradient_boosting(data_train_x, data_test_x, data_train_y, data_test_y):
+    from sklearn.ensemble import GradientBoostingRegressor
+    print "-- {} --".format("Gradient Boosting Regression using all but remarks")
+    rf = GradientBoostingRegressor(
+        n_estimators=500,
+        learning_rate=0.05
+    )
+    rf.fit(data_train_x, data_train_y)
+    sample_predictions(rf.predict(data_test_x), data_test_y)
+    score = rf.score(data_test_x, data_test_y)
+    cross_validated_scores = cross_val_score(
+        rf, data_test_x, data_test_y, cv=5)
+    print "MSE Accuracy: {}".format(score)
+    print "MSE Across 5 Folds: {}".format(cross_validated_scores)
+    print "95%% Confidence Interval: %0.3f (+/- %0.3f)\n" % (cross_validated_scores.mean(), cross_validated_scores.std() * 1.96)
+
+    """
+    test_score = np.zeros((1000,), dtype=np.float64)
+
+    for i, y_pred in enumerate(rf.staged_predict(data_test_x)):
+        test_score[i] = rf.loss_(data_test_y, y_pred)
+
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    plt.title('Deviance')
+    plt.plot(np.arange(1000) + 1, rf.train_score_, 'b-',
+             label='Training Set Deviance')
+    plt.plot(np.arange(1000) + 1, test_score, 'r-',
+             label='Test Set Deviance')
+    plt.legend(loc='upper right')
+    plt.xlabel('Boosting Iterations')
+    plt.ylabel('Deviance')
+    plt.show()
+    """
 
 
 def get_data():
