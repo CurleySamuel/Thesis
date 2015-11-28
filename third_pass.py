@@ -16,12 +16,28 @@ def main():
     print "\nSize of training set: {}\nSize of testing set: {}\nNumber of features: {}\n".format(len(data_train_y), len(data_test_y), len(data_test_x.columns.values))
     best_model = fit_best_model(data_train_x, data_train_y)
     report_accuracy(best_model, data_test_x, data_test_y, name="best model")
-    data_train_y_error = data_train_y - best_model.predict(data_train_x)
-    data_test_y_error = data_test_y - best_model.predict(data_test_x)
     remarks_model = build_remarks_model(
-        data_train_x_remarks, data_train_y_error)
+        data_train_x_remarks, data_train_y)
     report_accuracy(
-        remarks_model, data_test_x_remarks, data_test_y_error, name="remarks model")
+        remarks_model, data_test_x_remarks, data_test_y, name="remarks model")
+
+    m1_train_y = pd.Series(
+        best_model.predict(data_train_x), index=data_train_x.index.values, name='m1')
+    m2_train_y = pd.Series(remarks_model.predict(
+        data_train_x_remarks), index=data_train_x_remarks.index.values, name='m2')
+    m1_test_y = pd.Series(
+        best_model.predict(data_test_x), index=data_test_x.index.values, name='m1')
+    m2_test_y = pd.Series(remarks_model.predict(
+        data_test_x_remarks), index=data_test_x_remarks.index.values, name='m2')
+
+    combined_train = pd.concat([m1_train_y, m2_train_y], axis=1)
+    combined_test = pd.concat([m1_test_y, m2_test_y], axis=1)
+
+    from sklearn.ensemble import RandomForestRegressor
+    final_model = RandomForestRegressor(n_estimators=500, n_jobs=-1)
+    final_model.fit(combined_train, data_train_y)
+    report_accuracy(
+        final_model, combined_test, data_test_y, name="combined model")
 
 
 def get_data():
@@ -45,8 +61,8 @@ def get_data():
 
 def normalize_data(data):
     # Drop all the columns that we don't want.
-    data = data.drop(['Unnamed: 0', 'EXPIREDDATE', 'COOLING', 'AREA', "SHOWINGINSTRUCTIONS", "OFFICEPHONE", "STATUS",
-                      "OFFICENAME", "HOUSENUM2", "HOUSENUM1", "DTO", "DOM", "JUNIORHIGHSCHOOL", "AGENTNAME", "HIGHSCHOOL", "STREETNAME", "PHOTOURL", "HIGHSCHOOL", "ELEMENTARYSCHOOL", "ADDRESS", "LISTPRICE"], 1)
+    data = data.drop(['Unnamed: 0', 'EXPIREDDATE', 'COOLING', 'AREA', "SHOWINGINSTRUCTIONS", "OFFICEPHONE", "STATUS", "OFFICENAME", "HOUSENUM2", "HOUSENUM1",
+                      "DTO", "DOM", "JUNIORHIGHSCHOOL", "AGENTNAME", "HIGHSCHOOL", "STREETNAME", "PHOTOURL", "HIGHSCHOOL", "ELEMENTARYSCHOOL", "ADDRESS", "LISTPRICE"], 1)
     # If missing data on number of baths, set it to number of beds / 2.
     data.loc[data['BATHS'].isnull(), 'BATHS'] = data['BEDS'] / 2
     # Convert dates into number of days since the latest date.
@@ -131,7 +147,7 @@ def report_accuracy(model, data_test_x, data_test_y, name="model"):
 
 
 def sample_predictions(predicted, actual):
-    sample_size = 20
+    sample_size = 25
     samples = np.random.randint(0, high=len(actual), size=sample_size)
     print '{:^30}'.format("Predicted"),
     print '{:^30}\n'.format("Actual")
@@ -143,9 +159,7 @@ def sample_predictions(predicted, actual):
 def build_remarks_model(data_train_x_remarks, data_train_y):
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.decomposition import TruncatedSVD
-    from sklearn.linear_model import LogisticRegression
-    import ipdb
-    ipdb.set_trace()
+    from sklearn.linear_model import TheilSenRegressor
     pipe = make_pipeline(
         FillNaNs(),
         TfidfVectorizer(
@@ -156,12 +170,12 @@ def build_remarks_model(data_train_x_remarks, data_train_y):
         TruncatedSVD(
             n_components=100
         ),
-        LogisticRegression(
+        TheilSenRegressor(
+            n_jobs=-1
         )
     )
     pipe.fit(data_train_x_remarks, data_train_y)
-    pipe.set_params(
-        tfidfvectorizer__vocabulary=pipe.named_steps['tfidfvectorizer'].vocabulary_)
+    return pipe
 
 
 class FillNaNs:
