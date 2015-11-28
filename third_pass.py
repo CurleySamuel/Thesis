@@ -159,7 +159,8 @@ def sample_predictions(predicted, actual):
 def build_remarks_model(data_train_x_remarks, data_train_y):
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.decomposition import TruncatedSVD
-    from sklearn.linear_model import TheilSenRegressor
+    from sklearn.linear_model import LarsCV
+    from sklearn.grid_search import GridSearchCV
     pipe = make_pipeline(
         FillNaNs(),
         TfidfVectorizer(
@@ -170,10 +171,31 @@ def build_remarks_model(data_train_x_remarks, data_train_y):
         TruncatedSVD(
             n_components=100
         ),
-        TheilSenRegressor(
-            n_jobs=-1
+        LarsCV(
+            n_jobs=1,
+            cv=5
         )
     )
+
+    param_grid = dict(
+        tfidfvectorizer__ngram_range=[
+            (1, 1), (1, 4), (2, 2), (2, 4), (3, 3), (3, 4), (4, 4), (4, 5)],
+        tfidfvectorizer__max_df=[0.3, 0.7, 1.0],
+        tfidfvectorizer__min_df=[5, 10, 50, 100],
+        tfidfvectorizer__sublinear_tf=[True, False],
+        truncatedsvd__n_components=[50, 100, 500, 1000],
+        truncatedsvd__algorithm=["arpack", "randomized"],
+        larscv__normalize=[True, False],
+        larscv__max_iter=[500, 1000, 2000],
+        larscv__max_n_alphas=[750, 1250, 2000, 4000]
+    )
+
+    grid_search = GridSearchCV(
+        pipe, param_grid=param_grid, verbose=10, n_jobs=4, cv=5)
+    grid_search.fit(data_train_x_remarks, data_train_y)
+    print(grid_search.best_estimator_)
+    import ipdb
+    ipdb.set_trace()
     pipe.fit(data_train_x_remarks, data_train_y)
     return pipe
 
@@ -188,6 +210,12 @@ class FillNaNs:
 
     def transform(self, x):
         return x.fillna('')
+
+    def get_params(self, deep=True):
+        return {}
+
+    def set_params(self, x):
+        return self
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
