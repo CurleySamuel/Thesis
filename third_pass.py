@@ -16,8 +16,6 @@ def main():
     print "\nSize of training set: {}\nSize of testing set: {}\nNumber of features: {}\n".format(len(data_train_y), len(data_test_y), len(data_test_x.columns.values))
     best_model = fit_best_model(data_train_x, data_train_y)
     report_accuracy(best_model, data_test_x, data_test_y, name="best model")
-    import ipdb
-    ipdb.set_trace()
     data_train_y_error = data_train_y - best_model.predict(data_train_x)
     data_test_y_error = data_test_y - best_model.predict(data_test_x)
     remarks_model = build_remarks_model(
@@ -110,11 +108,11 @@ def fit_best_model(data_train_x, data_train_y):
     from sklearn.ensemble import GradientBoostingRegressor
     rf = GradientBoostingRegressor(
         n_estimators=500,
-        subsample=0.8,
-        learning_rate=0.09,
-        min_samples_leaf=7,
-        min_samples_split=9,
-        max_features=10,
+        subsample=1.0,
+        learning_rate=0.1,
+        min_samples_leaf=9,
+        min_samples_split=8,
+        max_features=8,
         max_depth=8
     )
     rf.fit(data_train_x, data_train_y)
@@ -146,7 +144,10 @@ def build_remarks_model(data_train_x_remarks, data_train_y):
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.decomposition import TruncatedSVD
     from sklearn.linear_model import LogisticRegression
+    import ipdb
+    ipdb.set_trace()
     pipe = make_pipeline(
+        FillNaNs(),
         TfidfVectorizer(
             ngram_range=(2, 5),
             max_df=0.8,
@@ -162,6 +163,17 @@ def build_remarks_model(data_train_x_remarks, data_train_y):
     pipe.set_params(
         tfidfvectorizer__vocabulary=pipe.named_steps['tfidfvectorizer'].vocabulary_)
 
+
+class FillNaNs:
+    # This class is used in the remarks processing pipeline. All transformers
+    # in pipelines have to support fit/transform functions. All it does is
+    # fill np.nans in a provided DataFrame with empty strings.
+
+    def fit(self, x, y):
+        return self
+
+    def transform(self, x):
+        return x.fillna('')
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
