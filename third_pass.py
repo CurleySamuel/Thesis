@@ -160,44 +160,43 @@ def build_remarks_model(data_train_x_remarks, data_train_y):
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.decomposition import TruncatedSVD
     from sklearn.linear_model import LarsCV
-    from sklearn.grid_search import GridSearchCV
     pipe = make_pipeline(
         FillNaNs(),
         TfidfVectorizer(
-            ngram_range=(2, 5),
-            max_df=0.8,
-            min_df=10
+            ngram_range=(1, 4),
+            max_df=0.7,
+            min_df=5,
+            sublinear_tf=True,
+
         ),
         TruncatedSVD(
-            n_components=100
+            n_components=500,
+            algorithm='arpack'
         ),
         LarsCV(
-            n_jobs=1,
+            n_jobs=-1,
+            max_iter=500,
+            max_n_alphas=750,
+            normalize=False,
             cv=5
         )
     )
 
-    param_grid = dict(
-        tfidfvectorizer__ngram_range=[
-            (1, 1), (1, 4), (2, 2), (2, 4), (3, 3), (3, 4), (4, 4), (4, 5)],
-        tfidfvectorizer__max_df=[0.3, 0.7, 1.0],
-        tfidfvectorizer__min_df=[5, 10, 50, 100],
-        tfidfvectorizer__sublinear_tf=[True, False],
-        truncatedsvd__n_components=[50, 100, 500, 1000],
-        truncatedsvd__algorithm=["arpack", "randomized"],
-        larscv__normalize=[True, False],
-        larscv__max_iter=[500, 1000, 2000],
-        larscv__max_n_alphas=[750, 1250, 2000, 4000]
-    )
-
-    grid_search = GridSearchCV(
-        pipe, param_grid=param_grid, verbose=10, n_jobs=4, cv=5)
-    grid_search.fit(data_train_x_remarks, data_train_y)
-    print(grid_search.best_estimator_)
-    import ipdb
-    ipdb.set_trace()
     pipe.fit(data_train_x_remarks, data_train_y)
     return pipe
+
+# Utility function to report best scores
+
+
+def report(grid_scores, n_top=6):
+    top_scores = sorted(grid_scores, key=itemgetter(1), reverse=True)[:n_top]
+    for i, score in enumerate(top_scores):
+        print("Model with rank: {0}".format(i + 1))
+        print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
+              score.mean_validation_score,
+              np.std(score.cv_validation_scores)))
+        print("Parameters: {0}".format(score.parameters))
+        print("")
 
 
 class FillNaNs:
