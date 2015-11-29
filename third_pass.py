@@ -174,7 +174,6 @@ def build_remarks_model(data_train_x_remarks, data_train_y):
             algorithm='arpack'
         ),
         LarsCV(
-            n_jobs=-1,
             max_iter=500,
             max_n_alphas=750,
             normalize=False,
@@ -184,19 +183,6 @@ def build_remarks_model(data_train_x_remarks, data_train_y):
 
     pipe.fit(data_train_x_remarks, data_train_y)
     return pipe
-
-# Utility function to report best scores
-
-
-def report(grid_scores, n_top=6):
-    top_scores = sorted(grid_scores, key=itemgetter(1), reverse=True)[:n_top]
-    for i, score in enumerate(top_scores):
-        print("Model with rank: {0}".format(i + 1))
-        print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
-              score.mean_validation_score,
-              np.std(score.cv_validation_scores)))
-        print("Parameters: {0}".format(score.parameters))
-        print("")
 
 
 class FillNaNs:
