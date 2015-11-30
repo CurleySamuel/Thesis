@@ -4,6 +4,9 @@ import sys
 import matplotlib.pyplot as plt
 from sklearn.cross_validation import cross_val_score
 from sklearn.pipeline import Pipeline, make_pipeline
+from time import time
+from operator import itemgetter
+from scipy.stats import randint as sp_randint
 
 
 def main():
@@ -123,13 +126,16 @@ def peel_off_remarks(data_train_x, data_test_x):
 def fit_best_model(data_train_x, data_train_y):
     from sklearn.ensemble import GradientBoostingRegressor
     rf = GradientBoostingRegressor(
+        loss='huber',
         n_estimators=500,
-        subsample=1.0,
-        learning_rate=0.1,
-        min_samples_leaf=9,
-        min_samples_split=8,
-        max_features=8,
-        max_depth=8
+        subsample=0.6,
+        learning_rate=0.08,
+        min_samples_leaf=3,
+        min_samples_split=1,
+        max_features='auto',
+        max_depth=5,
+        alpha=0.9,
+        min_weight_fraction_leaf=0.0
     )
     rf.fit(data_train_x, data_train_y)
     return rf
@@ -177,7 +183,7 @@ def build_remarks_model(data_train_x_remarks, data_train_y):
             max_iter=500,
             max_n_alphas=750,
             normalize=False,
-            cv=5
+            cv=3
         )
     )
 
