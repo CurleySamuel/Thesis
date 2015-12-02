@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import sys
-import nltk
 from sklearn.cross_validation import cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -227,7 +226,7 @@ class ClustererWrapper:
 
     def get_subset(self, x):
         # 'AGE'?
-        return x[['lat', 'lng', 'SQFT', 'BEDS', 'BATHS', 'ZIP', 'GARAGE', 'LOTSIZE']]
+        return x[['lat', 'lng', 'SQFT', 'BEDS', 'BATHS', 'ZIP', 'GARAGE', 'LOTSIZE']].fillna(0)
 
 
 class RegressorWrapper:
