@@ -66,10 +66,6 @@ def normalize_data(data):
     # Drop all the columns that we don't want.
     data = data.drop(['Unnamed: 0', 'EXPIREDDATE', 'COOLING', 'AREA', "SHOWINGINSTRUCTIONS", "OFFICEPHONE", "STATUS", "OFFICENAME", "HOUSENUM2", "HOUSENUM1",
                       "DTO", "DOM", "JUNIORHIGHSCHOOL", "AGENTNAME", "HIGHSCHOOL", "STREETNAME", "PHOTOURL", "HIGHSCHOOL", "ELEMENTARYSCHOOL", "ADDRESS", "LISTPRICE"], 1)
-    # If missing data on number of baths, set it to number of beds / 2.
-    #data.loc[data['BATHS'].isnull(), 'BATHS'] = data['BEDS'] / 2
-    data = data.fillna(data.mean()['BATHS'])
-
     # Convert dates into number of days since the latest date.
     for x in ["LISTDATE", "SOLDDATE"]:
         data[x] = (

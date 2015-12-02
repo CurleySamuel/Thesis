@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import sys
+import nltk
 from sklearn.cross_validation import cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -89,6 +90,7 @@ def get_data():
         sys.argv[1],
         index_col="MLSNUM",
         parse_dates=["LISTDATE", "SOLDDATE", "EXPIREDDATE"],
+        encoding="utf-8"
     )
     if len(sys.argv) > 2:
         # Read subsequent arguments, appending them into the same DataFrame.
@@ -97,6 +99,7 @@ def get_data():
                 f,
                 index_col="MLSNUM",
                 parse_dates=["LISTDATE", "SOLDDATE", "EXPIREDDATE"],
+                encoding="utf-8"
             )
             data = data.append(new_data)
     return data
@@ -106,8 +109,6 @@ def normalize_data(data):
     # Drop all the columns that we don't want.
     data = data.drop(['Unnamed: 0', 'EXPIREDDATE', 'COOLING', 'AREA', "SHOWINGINSTRUCTIONS", "OFFICEPHONE", "STATUS", "OFFICENAME", "HOUSENUM2", "HOUSENUM1",
                       "DTO", "DOM", "JUNIORHIGHSCHOOL", "AGENTNAME", "HIGHSCHOOL", "STREETNAME", "PHOTOURL", "HIGHSCHOOL", "ELEMENTARYSCHOOL", "ADDRESS", "LISTPRICE"], 1)
-    # If missing data on number of baths, set it to number of beds / 2.
-    data.loc[data['BATHS'].isnull(), 'BATHS'] = data['BEDS'] / 2
     # Convert dates into number of days since the latest date.
     for x in ["LISTDATE", "SOLDDATE"]:
         data[x] = (
@@ -143,11 +144,7 @@ def binarize_categorical_data(data):
         new_data = data[var].str.get_dummies(sep=', ')
         new_data.rename(
             columns=lambda x: "({}) ".format(var) + x, inplace=True)
-        data = data.merge(
-            new_data,
-            left_index=True,
-            right_index=True
-        )
+        data = pd.concat([data, new_data], axis=1, join='inner')
         data = data.drop(var, 1)
     return data
 
@@ -196,7 +193,6 @@ class PeelRemarks:
 
     def transform(self, x):
         return x['REMARKS']
-
 
 class FillNaNs:
     # Input: Remarks column.
