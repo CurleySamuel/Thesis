@@ -107,11 +107,7 @@ def binarize_categorical_data(data):
         new_data = data[var].str.get_dummies(sep=', ')
         new_data.rename(
             columns=lambda x: "({}) ".format(var) + x, inplace=True)
-        data = data.merge(
-            new_data,
-            left_index=True,
-            right_index=True
-        )
+        data = pd.concat([data, new_data], axis=1, join='inner')
         data = data.drop(var, 1)
     return data
 
