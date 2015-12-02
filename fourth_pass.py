@@ -56,7 +56,8 @@ def main():
                 ('cluster', ClustererWrapper(AffinityPropagation(
                     verbose=True
                 ))),
-                ('main_model', GradientBoostingRegressor(
+                ('split_to_columns', ColumnSplitter()),
+                ('main_model', RegressorWrapper(GradientBoostingRegressor(
                     loss='huber',
                     n_estimators=500,
                     subsample=0.6,
@@ -68,8 +69,8 @@ def main():
                     alpha=0.9,
                     min_weight_fraction_leaf=0.0,
                     verbose=1
-                ))
-            ])),
+                )))
+            ]))
         ])),
         ('final_model', RandomForestRegressor(
             n_estimators=500,
@@ -81,6 +82,7 @@ def main():
     final_pipeline.fit(data_train_x, data_train_y)
     report_accuracy(
         final_pipeline, data_test_x, data_test_y, name='combined model')
+    import ipdb; ipdb.set_trace()
 
 
 def get_data():
@@ -188,6 +190,7 @@ class PeelRemarks:
     # Transform: Return only remarks column.
 
     def fit(self, x, y):
+        print "Fitting PeelRemarks"
         return self
 
     def transform(self, x):
@@ -199,6 +202,7 @@ class FillNaNs:
     # Transform: Remarks column with all np.nan's replaced.
 
     def fit(self, x, y):
+        print "Fitting FillNaNs"
         return self
 
     def transform(self, x):
@@ -208,13 +212,15 @@ class FillNaNs:
 class ClustererWrapper:
     # Input: Full data block.
     # Fit: Train cluster alg on subset of data.
-    # Transform: Predict based on subset. Append predictions to data. Return
+    # Transform: Predict based on subset. Append predictions to data. 
+    #            Peel off remarks. Return data.
     # data.
 
     def __init__(self, model):
         self.cluster_model = model
 
     def fit(self, x, y):
+        print "Fitting ClustererWrapper"
         subset = self.get_subset(x)
         self.cluster_model.fit(subset, y)
         return self
@@ -222,7 +228,7 @@ class ClustererWrapper:
     def transform(self, x):
         subset = self.get_subset(x)
         x['cluster'] = self.cluster_model.predict(subset)
-        return x
+        return x.drop('REMARKS', 1).fillna(0)
 
     def get_subset(self, x):
         # 'AGE'?
@@ -238,12 +244,27 @@ class RegressorWrapper:
         self.regressor_model = model
 
     def fit(self, x, y):
+        print "Fitting RegressorWrapper"
         self.regressor_model.fit(x, y)
         return self
 
     def transform(self, x):
         return self.regressor_model.predict(x)
 
+
+class ColumnSplitter:
+    # I'm upset about the necessity of this class. FeatureUnion is appending rows and not columns but we need columns.
+    # Input: (2*X, 1) array of predictions.
+    # Fit: Pass.
+    # Transform: Transform into (X, 2). Predict.
+    def fit(self, x, y):
+        print "Fitting ColumnSplitter"
+        return self
+
+    def transform(self, x):
+        s1 = pd.Series(x[:len(x)/2])
+        s2 = pd.Series(x[len(x)/2:])
+        return pd.concat([s1, s2], axis=1)
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
