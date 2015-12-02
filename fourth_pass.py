@@ -56,7 +56,6 @@ def main():
                 ('cluster', ClustererWrapper(AffinityPropagation(
                     verbose=True
                 ))),
-                ('split_to_columns', ColumnSplitter()),
                 ('main_model', RegressorWrapper(GradientBoostingRegressor(
                     loss='huber',
                     n_estimators=500,
@@ -72,6 +71,7 @@ def main():
                 )))
             ]))
         ])),
+        ('split_to_columns', ColumnSplitter()),
         ('final_model', RandomForestRegressor(
             n_estimators=500,
             n_jobs=-1,
