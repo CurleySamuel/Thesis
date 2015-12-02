@@ -67,7 +67,9 @@ def normalize_data(data):
     data = data.drop(['Unnamed: 0', 'EXPIREDDATE', 'COOLING', 'AREA', "SHOWINGINSTRUCTIONS", "OFFICEPHONE", "STATUS", "OFFICENAME", "HOUSENUM2", "HOUSENUM1",
                       "DTO", "DOM", "JUNIORHIGHSCHOOL", "AGENTNAME", "HIGHSCHOOL", "STREETNAME", "PHOTOURL", "HIGHSCHOOL", "ELEMENTARYSCHOOL", "ADDRESS", "LISTPRICE"], 1)
     # If missing data on number of baths, set it to number of beds / 2.
-    data.loc[data['BATHS'].isnull(), 'BATHS'] = data['BEDS'] / 2
+    #data.loc[data['BATHS'].isnull(), 'BATHS'] = data['BEDS'] / 2
+    data = data.fillna(data.mean()['BATHS'])
+
     # Convert dates into number of days since the latest date.
     for x in ["LISTDATE", "SOLDDATE"]:
         data[x] = (
@@ -84,6 +86,7 @@ def binarize_categorical_data(data):
     for sub_column in sub_columns:
         data[sub_column] = data['OTHERFEATURES'].str.extract(
             "{}:(.*?);".format(sub_column))
+    print data.shape
     data = data.drop('OTHERFEATURES', 1)
     # Take these unstandardized fields and create 'dummy columns' from them
     # which have a 1 or 0 for each row. The number of dummy columns is equal
@@ -93,6 +96,7 @@ def binarize_categorical_data(data):
     sub_columns.extend(
         ["PROPTYPE", "STYLE", "HEATING", "CITY", "LEVEL", "STATE"])
     for var in sub_columns:
+        print data.shape
         if var == "LEVEL":
             # let the hate flow through you young padawan.
             data[var] = data[var].fillna(0.0).replace(
