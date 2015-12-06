@@ -80,7 +80,6 @@ def main():
         ))
     ])
     """
-    """
     basic_regressor = GradientBoostingRegressor(
         loss='huber',
         n_estimators=500,
@@ -97,9 +96,13 @@ def main():
 
     basic_regressor.fit(data_train_x.drop('REMARKS', 1).fillna(0), data_train_y)
     report_accuracy(basic_regressor, data_test_x.drop('REMARKS', 1).fillna(0), data_test_y, name='simple')
-    """
+
     final_pipeline = Pipeline([
-        ('cluster', ClustererWrapper(AffinityPropagation())),
+        ('cluster', ClustererWrapper(AffinityPropagation(
+            damping=0.5,
+            convergence_iter=15,
+            max_iter=500
+        ))),
         ('main_model', GradientBoostingRegressor(
             loss='huber',
             n_estimators=500,
@@ -113,26 +116,6 @@ def main():
             min_weight_fraction_leaf=0.0,
         ))
     ])
-
-    from sklearn.grid_search import RandomizedSearchCV
-    param_grid = dict(
-        cluster__damping=[0.5, 0.75, 1.0],
-        cluster__convergence_iter=[15, 20, 25],
-        cluster__max_iter=[200, 250, 300],
-        main_model__n_estimators=[500, 550, 600],
-        main_model__subsample=[0.55, 0.6, 0.65],
-        main_model__learning_rate=[0.07, 0.08, 0.09],
-        main_model__min_samples_leaf=[2, 3, 4],
-        main_model__min_samples_split=[1, 2],
-        main_model__max_depth=[4, 5, 6],
-        main_model__alpha=[0.85, 0.90, 0.95],
-    )
-
-    random_search = RandomizedSearchCV(final_pipeline, param_distributions=param_grid, n_iter=100, n_jobs=4, verbose=10)
-    random_search.fit(data_train_x, data_train_y)
-    report(random_search.grid_scores_)
-    import ipdb; ipdb.set_trace()
-
 
     final_pipeline.fit(data_train_x, data_train_y)
     report_accuracy(final_pipeline, data_test_x, data_test_y, name='simple with clusters')
@@ -278,7 +261,7 @@ class FillNaNs:
 class ClustererWrapper:
     # Input: Full data block.
     # Fit: Train cluster alg on subset of data.
-    # Transform: Predict based on subset. Append predictions to data. 
+    # Transform: Predict based on subset. Append predictions to data.
     #            Peel off remarks. Return data.
     # data.
 
