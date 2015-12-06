@@ -29,6 +29,7 @@ def main():
             3. An estimate derived from everything but remarks.
             4. An estimate derived from the previous two estimates.
     """
+    """
     final_pipeline = Pipeline([
         ('remarks_split', FeatureUnion([
             ('remarks_pipe', Pipeline([
@@ -78,10 +79,63 @@ def main():
             verbose=1
         ))
     ])
+    """
+    """
+    basic_regressor = GradientBoostingRegressor(
+        loss='huber',
+        n_estimators=500,
+        subsample=0.6,
+        learning_rate=0.08,
+        min_samples_leaf=3,
+        min_samples_split=1,
+        max_features='auto',
+        max_depth=5,
+        alpha=0.9,
+        min_weight_fraction_leaf=0.0,
+        verbose=1
+    )
+
+    basic_regressor.fit(data_train_x.drop('REMARKS', 1).fillna(0), data_train_y)
+    report_accuracy(basic_regressor, data_test_x.drop('REMARKS', 1).fillna(0), data_test_y, name='simple')
+    """
+    final_pipeline = Pipeline([
+        ('cluster', ClustererWrapper(AffinityPropagation())),
+        ('main_model', GradientBoostingRegressor(
+            loss='huber',
+            n_estimators=500,
+            subsample=0.6,
+            learning_rate=0.08,
+            min_samples_leaf=3,
+            min_samples_split=1,
+            max_features='auto',
+            max_depth=5,
+            alpha=0.9,
+            min_weight_fraction_leaf=0.0,
+        ))
+    ])
+
+    from sklearn.grid_search import RandomizedSearchCV
+    param_grid = dict(
+        cluster__damping=[0.5, 0.75, 1.0],
+        cluster__convergence_iter=[15, 20, 25],
+        cluster__max_iter=[200, 250, 300],
+        main_model__n_estimators=[500, 550, 600],
+        main_model__subsample=[0.55, 0.6, 0.65],
+        main_model__learning_rate=[0.07, 0.08, 0.09],
+        main_model__min_samples_leaf=[2, 3, 4],
+        main_model__min_samples_split=[1, 2],
+        main_model__max_depth=[4, 5, 6],
+        main_model__alpha=[0.85, 0.90, 0.95],
+    )
+
+    random_search = RandomizedSearchCV(final_pipeline, param_distributions=param_grid, n_iter=100, n_jobs=4, verbose=10)
+    random_search.fit(data_train_x, data_train_y)
+    report(random_search.grid_scores_)
+    import ipdb; ipdb.set_trace()
+
 
     final_pipeline.fit(data_train_x, data_train_y)
-    report_accuracy(
-        final_pipeline, data_test_x, data_test_y, name='combined model')
+    report_accuracy(final_pipeline, data_test_x, data_test_y, name='simple with clusters')
     import ipdb; ipdb.set_trace()
 
 
@@ -155,6 +209,18 @@ def split_data(data):
     x = data.drop('SOLDPRICE', 1)
     y = data['SOLDPRICE']
     return train_test_split(x, y, test_size=0.25)
+
+
+def report(grid_scores, n_top=3):
+    from operator import itemgetter
+    top_scores = sorted(grid_scores, key=itemgetter(1), reverse=True)[:n_top]
+    for i, score in enumerate(top_scores):
+        print("Model with rank: {0}".format(i + 1))
+        print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
+              score.mean_validation_score,
+              np.std(score.cv_validation_scores)))
+        print("Parameters: {0}".format(score.parameters))
+        print("")
 
 
 def report_accuracy(model, data_test_x, data_test_y, name="model"):
@@ -233,6 +299,12 @@ class ClustererWrapper:
     def get_subset(self, x):
         # 'AGE'?
         return x[['lat', 'lng', 'SQFT', 'BEDS', 'BATHS', 'ZIP', 'GARAGE', 'LOTSIZE']].fillna(0)
+
+    def get_params(self, deep=True):
+        return self.cluster_model.get_params(deep=deep)
+
+    def set_params(self, **params):
+        return self.cluster_model.set_params(params)
 
 
 class RegressorWrapper:
