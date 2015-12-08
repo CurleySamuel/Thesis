@@ -7,7 +7,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.linear_model import LarsCV
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-from sklearn.cluster import AffinityPropagation
 
 
 def main():
@@ -80,6 +79,7 @@ def main():
         ))
     ])
     """
+    """
     basic_regressor = GradientBoostingRegressor(
         loss='huber',
         n_estimators=500,
@@ -96,12 +96,10 @@ def main():
 
     basic_regressor.fit(data_train_x.drop('REMARKS', 1).fillna(0), data_train_y)
     report_accuracy(basic_regressor, data_test_x.drop('REMARKS', 1).fillna(0), data_test_y, name='simple')
-
+    """
+    from sklearn.cluster import MeanShift
     final_pipeline = Pipeline([
-        ('cluster', ClustererWrapper(AffinityPropagation(
-            damping=0.5,
-            convergence_iter=15,
-            max_iter=500
+        ('cluster', ClustererWrapper(MeanShift(
         ))),
         ('main_model', GradientBoostingRegressor(
             loss='huber',
@@ -207,16 +205,16 @@ def report(grid_scores, n_top=3):
 
 
 def report_accuracy(model, data_test_x, data_test_y, name="model"):
+    print "{:-^60}".format(name.upper() + " ACCURACY")
     score = model.score(data_test_x, data_test_y)
+    print "MSE Accuracy: {}".format(score)
+    data_predicted_y = model.predict(data_test_x)
+    print "MAPE: {}".format(mean_absolute_percentage_error(data_test_y, data_predicted_y))
+    sample_predictions(model.predict(data_test_x), data_test_y)
     cross_validated_scores = cross_val_score(
         model, data_test_x, data_test_y, cv=5)
-    data_predicted_y = model.predict(data_test_x)
-    print "{:-^60}".format(name.upper() + " ACCURACY")
-    print "MAPE: {}".format(mean_absolute_percentage_error(data_test_y, data_predicted_y))
-    print "MSE Accuracy: {}".format(score)
     print "MSE Across 5 Folds: {}".format(cross_validated_scores)
     print "95%% Confidence Interval: %0.3f (+/- %0.3f)\n" % (cross_validated_scores.mean(), cross_validated_scores.std() * 1.96)
-    sample_predictions(model.predict(data_test_x), data_test_y)
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
