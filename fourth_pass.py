@@ -7,6 +7,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.linear_model import LarsCV
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.cluster import MeanShift
 
 
 def main():
@@ -27,7 +28,6 @@ def main():
             2. An estimate derived from remarks.
             3. An estimate derived from everything but remarks.
             4. An estimate derived from the previous two estimates.
-    """
     """
     final_pipeline = Pipeline([
         ('remarks_split', FeatureUnion([
@@ -53,8 +53,8 @@ def main():
                 )))
             ])),
             ('not_remarks_pipe', Pipeline([
-                ('cluster', ClustererWrapper(AffinityPropagation(
-                    verbose=True
+                ('cluster', ClustererWrapper(MeanShift(
+                    bin_seeding=True,
                 ))),
                 ('main_model', RegressorWrapper(GradientBoostingRegressor(
                     loss='huber',
@@ -70,7 +70,7 @@ def main():
                     verbose=1
                 )))
             ]))
-        ])),
+        ], n_jobs=-1)),
         ('split_to_columns', ColumnSplitter()),
         ('final_model', RandomForestRegressor(
             n_estimators=500,
@@ -78,8 +78,7 @@ def main():
             verbose=1
         ))
     ])
-    """
-    """
+
     basic_regressor = GradientBoostingRegressor(
         loss='huber',
         n_estimators=500,
@@ -93,30 +92,11 @@ def main():
         min_weight_fraction_leaf=0.0,
         verbose=1
     )
-
     basic_regressor.fit(data_train_x.drop('REMARKS', 1).fillna(0), data_train_y)
     report_accuracy(basic_regressor, data_test_x.drop('REMARKS', 1).fillna(0), data_test_y, name='simple')
-    """
-    from sklearn.cluster import MeanShift
-    final_pipeline = Pipeline([
-        ('cluster', ClustererWrapper(MeanShift(
-        ))),
-        ('main_model', GradientBoostingRegressor(
-            loss='huber',
-            n_estimators=500,
-            subsample=0.6,
-            learning_rate=0.08,
-            min_samples_leaf=3,
-            min_samples_split=1,
-            max_features='auto',
-            max_depth=5,
-            alpha=0.9,
-            min_weight_fraction_leaf=0.0,
-        ))
-    ])
 
     final_pipeline.fit(data_train_x, data_train_y)
-    report_accuracy(final_pipeline, data_test_x, data_test_y, name='simple with clusters')
+    report_accuracy(final_pipeline, data_test_x, data_test_y, name='best')
     import ipdb; ipdb.set_trace()
 
 
@@ -284,7 +264,7 @@ class ClustererWrapper:
     def get_params(self, deep=True):
         return self.cluster_model.get_params(deep=deep)
 
-    def set_params(self, **params):
+    def set_params(self, params):
         return self.cluster_model.set_params(params)
 
 
