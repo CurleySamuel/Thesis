@@ -74,29 +74,45 @@ But the path to accuracy won't be easy. We'll take these 25 features and transfo
 
 # The Models
 
-In the Methods section we'll talk about a variety of models and algorithms used to form our estimation pipelines. While this paper does expect some level of statistical knowledge; it doesn't make the leap that the reader is familiar with the intricacies of various regression models. As such I wanted to include a brief section dedicated to a quick overview of the models and algorithms that we'll be seeing later.
+In the Methods section we talk about a variety of models and algorithms used to form our estimation pipelines. While this paper does expect some level of statistical knowledge; it doesn't make the leap that the reader is familiar with the intricacies of various regression models. As such I wanted to include a brief section dedicated to a quick overview of the models and algorithms that we'll see.
 
 ## Regression
 
-#### Random Forests
+- #### Random Forests
 
-#### Extremely Randomized Forests
+ A random forest is a meta-estimator formed by an ensemble of decision trees each fitted over different subsamples of the dataset. The output value is then the mean of each decision tree's output values. Random forests are versatile and often the goto model when facing a new problem as they can help uncover the relative importance of features.
 
-#### Gradient Tree Boosting  
+- #### Extremely Randomized Forests
 
-#### Least Angle
+ Functionally equivalent with random forests but introduce more randomness when selecting a subset of features. This tends to reduce the variance of the model in exchange for a slight increase in bias.
+
+- #### Gradient Tree Boosting  
+
+ Another ensemble method, gradient boosted regression trees form ensembles of weaker decision learners that improve on their predecessor's estimate by chaining a new tree on the error of the last tree.
+
+- #### Least Angle
+
+ Least angle regression is a linear regression algorithm typically used when overfitting is a concern or when analyzing a sparse matrix.
 
 ## Clustering
 
-#### MeanShift
+- #### MeanShift
+
+ Mean shift by itself is a technique for locating maximas in a density function. Mean shift clustering works by assuming that the input data is a sampling from an underlying density function. It then uses mean shift appropriately to uncover modes in the feature space (clusters of similar values).
 
 ## Matrix Decomposition
 
-#### Truncated Singular Value Decomposition
+- #### Truncated Singular Value Decomposition
+
+ Matrix decomposition algorithm used to reduce the dimensionality of an input matrix. In the context that we're using it (word frequency matrices) it's actually called latent semantic analysis.
 
 ## Feature Extraction
 
-#### tf-idf
+- #### tf-idf
+
+ Term frequency inverse document frequency. This term frequency transformation will reweight the term frequency of a blob by the inverse of the commonality of the term across all blobs. That is, it'll scale down the reported frequencies of common words and scale up the frequencies of unique words. This is a common technique to reflect word importance and help summarize text.
+
+
 
 
 
