@@ -70,57 +70,14 @@ We'll later find that most of these are relatively unimportant features and can 
 But the path to accuracy won't be easy. We'll take these 25 features and transform them into over 322 features by geolocating addresses, clustering homes in several dimensions, analyzing the paragraphs of remarks left by realtors, and tuning the hyper parameters of chained models. From that incredible amounts of data we'll generate a single number for every home - our predicted sale price of the home if it was sold today. May the odds be ever in our favor.
 
 
-# The Data
-
-# The Models
-
-In the Methods section we talk about a variety of models and algorithms used to form our estimation pipelines. While this paper does expect some level of statistical knowledge; it doesn't make the leap that the reader is familiar with the intricacies of various regression models. As such I wanted to include a brief section dedicated to a quick overview of the models and algorithms that we'll see.
-
-## Regression
-
-- #### Random Forests
-
- A random forest is a meta-estimator formed by an ensemble of decision trees each fitted over different subsamples of the dataset. The output value is then the mean of each decision tree's output values. Random forests are versatile and often the goto model when facing a new problem as they can help uncover the relative importance of features.
-
-- #### Extremely Randomized Forests
-
- Functionally equivalent with random forests but introduce more randomness when selecting a subset of features. This tends to reduce the variance of the model in exchange for a slight increase in bias.
-
-- #### Gradient Tree Boosting  
-
- Another ensemble method, gradient boosted regression trees form ensembles of weaker decision learners that improve on their predecessor's estimate by chaining a new tree on the error of the last tree.
-
-- #### Least Angle
-
- Least angle regression is a linear regression algorithm typically used when overfitting is a concern or when analyzing a sparse matrix.
-
-## Clustering
-
-- #### MeanShift
-
- Mean shift by itself is a technique for locating maximas in a density function. Mean shift clustering works by assuming that the input data is a sampling from an underlying density function. It then uses mean shift appropriately to uncover modes in the feature space (clusters of similar values).
-
-## Matrix Decomposition
-
-- #### Truncated Singular Value Decomposition
-
- Matrix decomposition algorithm used to reduce the dimensionality of an input matrix. In the context that we're using it (word frequency matrices) it's actually called latent semantic analysis.
-
-## Feature Extraction
-
-- #### tf-idf
-
- Term frequency inverse document frequency. This term frequency transformation will reweight the term frequency of a blob by the inverse of the commonality of the term across all blobs. That is, it'll scale down the reported frequencies of common words and scale up the frequencies of unique words. This is a common technique to reflect word importance and help summarize text.
-
-
-
-
-
-
 # Methods
 
 The project was done with an iterative development model in mind and as such it only makes sense to present the project using it's iterations. The first iterations were primarily dedicated to building out the data pipeline and normalization techniques but also featured crude models based on small subsets of the data. Then the models started getting more refined as more and more features were incorporated into the models via more feature extraction and text analysis. The final iterations had the smallest code delta but took the most amount of time as they were heavy on tuning model hyper-parameters and soaking as much accuracy out from them as possible.
 
+
+## The Data
+
+The data for 21,657 homes were sourced from the multiple listing service (MLS).
 
 ## Iteration 0
 
@@ -147,7 +104,57 @@ The unfortunate consequence of this feature extraction is that we start with mat
 
 ## Iteration 3
 
+## The Models
+
+We've talked about a variety of models and algorithms used to form our estimation pipelines. While this paper does expect some level of statistical knowledge; it doesn't make the leap that the reader is familiar with the intricacies of various regression models. As such I wanted to include a brief section dedicated to a quick overview of the models and algorithms that we've seen.
+
+### Regression
+
+- #### Random Forests
+
+ A random forest is a meta-estimator formed by an ensemble of decision trees each fitted over different subsamples of the dataset. The output value is then the mean of each decision tree's output values. Random forests are versatile and often the goto model when facing a new problem as they can help uncover the relative importance of features.
+
+- #### Extremely Randomized Forests
+
+ Functionally equivalent with random forests but introduce more randomness when selecting a subset of features. This tends to reduce the variance of the model in exchange for a slight increase in bias.
+
+- #### Gradient Tree Boosting  
+
+ Another ensemble method, gradient boosted regression trees form ensembles of weaker decision learners that improve on their predecessor's estimate by chaining a new tree on the error of the last tree.
+
+- #### Least Angle
+
+ Least angle regression is a linear regression algorithm typically used when overfitting is a concern or when analyzing a sparse matrix.
+
+### Clustering
+
+- #### MeanShift
+
+ Mean shift by itself is a technique for locating maximas in a density function. Mean shift clustering works by assuming that the input data is a sampling from an underlying density function. It then uses mean shift appropriately to uncover modes in the feature space (clusters of similar values).
+
+### Matrix Decomposition
+
+- #### Truncated Singular Value Decomposition
+
+ Matrix decomposition algorithm used to reduce the dimensionality of an input matrix. In the context that we're using it (word frequency matrices) it's actually called latent semantic analysis.
+
+### Feature Extraction
+
+- #### tf-idf
+
+ Term frequency inverse document frequency. This term frequency transformation will reweight the term frequency of a blob by the inverse of the commonality of the term across all blobs. That is, it'll scale down the reported frequencies of common words and scale up the frequencies of unique words. This is a common technique to reflect word importance and help summarize text.
+
+
 # Results
+
+## Scoring
+
+We need a method of scoring the accuracy of our regression models and one of the primary ways we're going to do so is the coefficient of determination (R<sup>2</sup>). R<sup>2</sup> has the range [0.0, 1.0] and represents the fraction of variance in the output that's predictable from the input. While generally a good scoring method it does suffer from a few problems like when sample size increases as R<sup>2</sup> rewards larger sample sizes (fixed by adjusted R<sup>2</sup>). An R<sup>2</sup> of 1.0 means that the model is predicting perfectly.
+
+To allow us to compare our regression capabilities to that of Zillow we'll also be looking at the mean absolute percent error in a few cases. MAPE on it's own isn't a very good scoring method as predictions that are systematically low are bounded to a MAPE of 100% while predictions that are systematically too high are unbounded. This means that when using MAPE to compare models there exists a bias towards estimators that predict lower versus models that predict higher. A MAPE of 0.0 means the model is predicting perfectly.
+
+We also face the issue of overfitting. The usual method of dealing with overfitting is handled by segmenting your data into two distinct sets - a training set and a testing set. But this still isn't perfect because when tuning the hyperparameters of models we'll favor the parameters that perform the best on the testing set (but not necessarily new data). To handle this overfitting problem we introduce the idea of cross validation, specifically K-Fold cross validation. K-Fold CV segments the dataset into K distinct but equal subsamples. K-1 of the subsamples are used to train the model and the remaining subsample is then used as the testing data. This is repeated K times so that every subsample has the chance to be the testing set. The resultant score is usually the average of the K subscores.
+
 
 ## Iteration 0
 
