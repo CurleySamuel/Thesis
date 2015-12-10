@@ -12,6 +12,27 @@ The goal isn't to beat common home valuation tools like Zillow and Redfin at the
 
 # Table of Contents
 
+- [Introduction](#Introduction)
+- [Methods](#Methods)
+  - [The Data](#The-Data)
+  - [Iteration 0](#Iteration-0)
+  - [Iteration 1](#Iteration-1)
+  - [Iteration 2](#Iteration-2)
+  - [Iteration 3](#Iteration-3)
+  - [The Models](#The-Models)
+- [Results](#Results)
+  - [Scoring](#Scoring)
+  - [Iteration 0](#Iteration-0)
+  - [Iteration 1](#Iteration-1)
+  - [Iteration 2](#Iteration-2)
+  - [Iteration 3](#Iteration-3)
+- [Discussion](#Discussion)
+- [Conclusions](#Conclusions)
+- [Acknowledgements](#Acknowledgements)
+- [References](#References)
+
+
+
 # Introduction
 
 A decade ago the only way to get a trustworthy valuation of your home was to call in a realtor to do a comparative market analysis (CMA). Unfortunately doing a CMA is a lengthy process that can take anywhere from 2 - 8 hours and as such either payment or the promise of business for that realtor is a typical prerequisite. The curious prospective seller wanting to get an idea of the value of their home was limited to the crude methods of scoping out nearby open houses and word of mouth exchanges.
@@ -81,7 +102,7 @@ The data for 21,657 homes were sourced from the multiple listing service (MLS).
 
 ## Iteration 0
 
-Location, location, location. Unfortunately _221B Baker Street_ doesn't give our models much to work with so the first preprocessing step is to geocode our entire suite of testing and training data. The fundamental flaw with an address is that addresses on their own don't contain any proximity information beyond the street name - are _17 Welthfield St_ and _2998 Homer Ave_ close to each other (and thus have similar land value)? It's impossible to say without first converting the address to their geographical coordinates. Suddenly the problem of proximity is reduced to euclidean distance. Geocoding in itself isn't a mystery so I'll skim over the implementation details but the source code can be found in <a href=geocode_data.py>geocode_data.py</a>.
+Location, location, location. Unfortunately _221B Baker Street_ doesn't give our models much to work with so the first preprocessing step is to geocode our entire suite of testing and training data. The fundamental flaw with an address is that addresses on their own don't contain any proximity information beyond the street name - are _17 Welthfield St_ and _2998 Homer Ave_ close to each other (and thus have similar land value)? It's impossible to say without first converting the address to their geographical coordinates. Suddenly the problem of proximity is reduced to euclidean distance. Geocoding in itself isn't a mystery so I'll skim over the implementation details but the source code can be found in [geocode_data.py](geocode_data.py).
 
 Also in this iteration was the first foray into regressors. The first iteration ended with six distinct regression models with each model using either a different regression algorithm or a completely different subset of the data. Specifically we have -
 
