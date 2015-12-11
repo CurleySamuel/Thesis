@@ -168,9 +168,9 @@ While it may seem persnickety to worry about fine-tuning models already, the ter
 
 There's one variable which guessing works quite well with - n_estimators which is the number of boosting stages to perform. Gradient Tree Boosting is an ensemble method in that it forms ensembles of weaker decision learners, each ensemble improving on their predecessor's estimate by chaining a new tree on the error of the last tree. The number of boosting stages is how many of these improvement stages occur. We can guess this constant because at every iteration if we measure the deviance of both the training set and the testing set and graph this deviance, we can tell when improvement starts slowing down. From there we can select a reasonable trade off between training time and trailing off accuracy improvements.
 
-![Graph of Deviance vs. Iterations](/images/figure_1.png)
+![Graph of Deviance vs. Iterations](images/figure_1.png)
 
-![Graph of Improvement vs. Iterations](/images/figure_2.png)
+![Graph of Improvement vs. Iterations](images/figure_2.png)
 
 ### Randomly Guessing
 
@@ -407,7 +407,7 @@ For every model in this iteration we've included both the R<sup>2</sup> score as
           953,021                        899,900                        893,000           
 ```
 
-Judging purely by score the final model using the boosting technique on our entire set of data minus realtor remarks seems to be the most accurate (we'll incorporate the remarks in a later iteration). As you can see in the sample of predictions made there are several cases where the prediction is eerily accurate and gets within $10,000 of the final sale price but there's also a fair share of predictions as far off as half a million dollars. Below is a chart comparing our percentile accuracy of our most accurate model so far with Zillow's reported accuracy in Boston, MA.  
+Judging purely by score the final model using the boosting technique on our entire set of data minus realtor remarks seems to be the most accurate (we'll incorporate the remarks in a later iteration). As you can see in the sample of predictions made there are several cases where the prediction is eerily accurate and gets within $10,000 of the final sale price but there's also a fair share of predictions as far off as half a million dollars. Below is a chart comparing our MAPE percentile accuracy of our most accurate model so far with Zillow's reported accuracy in Boston, MA.  
 
 | | Our GBRT | Zillow |
 | --------- | :-------: | :----: |
@@ -415,10 +415,69 @@ Judging purely by score the final model using the boosting technique on our enti
 | Within 10% | 0.528 | 0.626 |
 | Within 20% | 0.823 | 0.878 |
 
-It's getting there. Our numbers aren't quite close enough to serve as a reliable tool yet but it's worth pointing out what a result we're getting with our limited data. Zillow's numbers have access to historical home data including historical sale prices (if a home sold for $760,000 two years ago, predicting it'll sell for $760,000 + relative area growth would be an easy but comparably accurate algorithm), but all our algorithm has is the physical features of a home. It has to play the role of an appraiser using what accounts to only the information you'd find on an real estate shop window flyer, a significantly tougher job. The next iteration will take the best model from this iteration - gradient boosted regression trees, and build upon it.
+It's getting there. Our numbers aren't quite close enough to serve as a reliable tool yet but it's worth pointing out what a result we're getting with our limited data. Zillow's numbers have access to historical home data including historical sale prices (if a home sold for $760,000 two years ago, predicting it'll sell for $760,000 + relative area growth would be an easy but comparably accurate algorithm), meangwhile all our algorithm has is the physical features of a home. It has to play the role of an appraiser using what accounts to only the information you'd find on an real estate shop window flyer which is a significantly tougher job. The next iteration will take the best model from this iteration - gradient boosted regression trees and build upon it.
 
 
 ## Iteration 1
+
+This was the tuning iteration and after letting RandomSearch run for several hours trying thousands of parameter combinations we end up with the below parameters.
+
+```python
+rf = GradientBoostingRegressor(
+    n_estimators=500,
+    subsample=0.8,
+    learning_rate=0.09,
+    min_samples_leaf=7,
+    min_samples_split=9,
+    max_features=10,
+    max_depth=8
+)
+```
+
+And these are the scores and predictions for our newly tuned GBRT. While our overall R<sup>2</sup> score has only gone up a bit, our MAPE percentile accuracy has increased quite significantly.
+
+```
+MSE Accuracy: 0.889946546207
+MSE Across 5 Folds: [ 0.8579455   0.84761359  0.87830055  0.85210753  0.8764793 ]
+95% Confidence Interval: 0.862 (+/- 0.025)  
+          Predicted                      Sale Price          
+
+           470,188                        475,000            
+           787,193                        955,000            
+           628,016                        570,000            
+           491,338                        453,000            
+           693,249                        840,000            
+           637,664                        412,000            
+           563,810                        560,000            
+           425,637                        415,000            
+           470,643                        439,000            
+           320,209                        292,000            
+           432,653                        584,000            
+           812,341                        745,000            
+           793,035                        690,000            
+           392,469                        440,000            
+           554,218                        570,000            
+           553,341                        415,000            
+           444,175                        385,000            
+           578,212                        580,000            
+           356,002                        275,000            
+          1,393,317                      1,325,000           
+
+```
+
+| | Default GBRT | Tuned GBRT | Zillow |
+| --------- | :-------: | :-----: | :----: |
+| Within 5% | 0.286 | 0.313 | 0.353 |
+| Within 10% | 0.528 | 0.573 | 0.626 |
+| Within 20% | 0.823 | 0.854 | 0.878 |
+
+
+One of the helpful side-effects of decision trees is that by examining the structure of decision trees we can infer the relative importance of features. Because our GBRT is inherently based on individual decision trees we can also use GBRTs to infer feature importance. The below graph is the relative feature importance of the top 70 most important features as inferred from the tree structure after fitting the training data.
+
+![Graph of relative feature importance](images/figure_3.png)
+
+Note that the above graph does not account for correlations between features and can be a little misleading. Take the correlation that exists between latitude/longitude and zip-code - homes with similar coordinates will probably be in the same zip-code; they're heavily correlated features. As a result when a decision tree is choosing a feature to split it may always choose one of the correlated features over the other resulting in the constantly chosen feature appearing to have a greater importance when in reality they both have equal importance. According to most realtors location should be the most important thing on that chart - which it may very well be if you add up all the correlated location features (lng, lat, zip, city, etc). With that said the graph is still helpful as it shows that once you get past the top ten or so the rest start having a marginal impact and can be removed without a large loss in accuracy.
+
 
 ## Iteration 2
 
