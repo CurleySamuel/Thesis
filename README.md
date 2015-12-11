@@ -12,24 +12,24 @@ The goal isn't to beat common home valuation tools like Zillow and Redfin at the
 
 # Table of Contents
 
-- [Introduction](#Introduction)
-- [Methods](#Methods)
-  - [The Data](#The-Data)
-  - [Iteration 0](#Iteration-0)
-  - [Iteration 1](#Iteration-1)
-  - [Iteration 2](#Iteration-2)
-  - [Iteration 3](#Iteration-3)
-  - [The Models](#The-Models)
-- [Results](#Results)
-  - [Scoring](#Scoring)
-  - [Iteration 0](#Iteration-0)
-  - [Iteration 1](#Iteration-1)
-  - [Iteration 2](#Iteration-2)
-  - [Iteration 3](#Iteration-3)
-- [Discussion](#Discussion)
-- [Conclusions](#Conclusions)
-- [Acknowledgements](#Acknowledgements)
-- [References](#References)
+- [Introduction](#introduction)
+- [Methods](#methods)
+  - [The Data](#the-data)
+  - [The Models](#the-models)
+  - [Iteration 0](#iteration-0)
+  - [Iteration 1](#iteration-1)
+  - [Iteration 2](#iteration-2)
+  - [Iteration 3](#iteration-3)
+- [Results](#results)
+  - [Scoring](#scoring)
+  - [Iteration 0](#iteration-0-1)
+  - [Iteration 1](#iteration-1-1)
+  - [Iteration 2](#iteration-2-1)
+  - [Iteration 3](#iteration-3-1)
+- [Discussion](#discussion)
+- [Conclusions](#conclusions)
+- [Acknowledgements](#acknowledgements)
+- [References](#references)
 
 
 
@@ -98,7 +98,48 @@ The project was done with an iterative development model in mind and as such it 
 
 ## The Data
 
-The data for 21,657 homes were sourced from the multiple listing service (MLS).
+The data for 21,657 homes was sourced from the multiple listing service (MLS).
+
+## The Models
+
+We'll talk about a variety of models and algorithms used to form our estimation pipelines. While this paper does expect some level of statistical knowledge; it doesn't make the leap that the reader is familiar with the intricacies of various regression models. As such I wanted to include a brief section dedicated to a quick overview of the models and algorithms that we'll see. Because my primary machine learning library used was scikit-learn - all regressors and algorithms below used the implementation that can be found in that package.
+
+### Regression
+
+- #### Random Forests
+
+ A random forest is a meta-estimator formed by an ensemble of decision trees each fitted over different subsamples of the dataset. The output value is then the mean of each decision tree's output values. Random forests are versatile and often the goto model when facing a new problem as they can help uncover the relative importance of features.
+
+- #### Extremely Randomized Forests
+
+ Functionally equivalent with random forests but introduce more randomness when selecting a subset of features. This tends to reduce the variance of the model in exchange for a slight increase in bias.
+
+- #### Gradient Tree Boosting  
+
+ Another ensemble method, gradient boosted regression trees form ensembles of weaker decision learners that improve on their predecessor's estimate by chaining a new tree on the error of the last tree.
+
+- #### Least Angle
+
+ Least angle regression is a linear regression algorithm typically used when overfitting is a concern or when analyzing a sparse matrix.
+
+### Clustering
+
+- #### MeanShift
+
+ Mean shift by itself is a technique for locating maximas in a density function. Mean shift clustering works by assuming that the input data is a sampling from an underlying density function. It then uses mean shift appropriately to uncover modes in the feature space (clusters of similar values).
+
+### Matrix Decomposition
+
+- #### Truncated Singular Value Decomposition
+
+ Matrix decomposition algorithm used to reduce the dimensionality of an input matrix. In the context that we're using it (word frequency matrices) it's actually called latent semantic analysis.
+
+### Feature Extraction
+
+- #### tf-idf
+
+ Term frequency inverse document frequency. This term frequency transformation will reweight the term frequency of a blob by the inverse of the commonality of the term across all blobs. That is, it'll scale down the reported frequencies of common words and scale up the frequencies of unique words. This is a common technique to reflect word importance and help summarize text.
+
 
 ## Iteration 0
 
@@ -214,45 +255,18 @@ Also in this iteration were more randomized searches across the space of paramet
 
 ## Iteration 3
 
-## The Models
+At this point we've accounted for all the data in either the GBRT or the realtor remarks pipeline. Now all that's left to do is hook the models up to each other in some way so we can aggregate the individual predictions into a more accurate umbrella prediction. To do this and all the intermediate transformations we're utilizing another sklearn utility module that contains Pipelines and FeatureUnions. A pipeline is just as it sounds - a chain of transformers that fit their input and output their transformed input to the next transformer in line. Calling .fit() on a pipeline is equivalent to calling .fit() and then .transform() successively on every transformer in the pipeline. FeatureUnions work in the other dimension and concatenate the outputs of N individual transformers into a single output matrix. Using both pipelines and feature unions allow us to create very complex machine learning pipelines.
 
-We've talked about a variety of models and algorithms used to form our estimation pipelines. While this paper does expect some level of statistical knowledge; it doesn't make the leap that the reader is familiar with the intricacies of various regression models. As such I wanted to include a brief section dedicated to a quick overview of the models and algorithms that we've seen. Because my primary machine learning library used was scikit-learn - all regressors and algorithms below used the implementation that can be found in that package.
+But there's one last feature extraction technique left. In the previous few iterations I noticed from outliers that the models aren't attributing the location of a home as strongly as I would like. A two bed two bath home surrounded by several million dollar homes should be worth significantly more than a two bed two bath in a less desirable neighborhood. In an attempt to reinforce localized variances we'll run a subset of the data through a clustering algorithm with the intent of clustering nearby homes that have similar attributes. We'll then include these clusters in our umbrella model in the hopes that it'll recognize wealthier clusters from less appealing clusters and derive some semblance of wealth from the other homes in a cluster.
 
-### Regression
+The clustering technique I've chosen to do so is called MeanShift. Mean shift by itself is a technique for locating maximas in a density function. Mean shift clustering works by assuming that the input data is a sampling from an underlying density function. It then uses mean shift appropriately to uncover modes in the feature space (clusters of similar values). We'll run MeanShift on the subset of features `['lat', 'lng', 'SQFT', 'BEDS', 'BATHS', 'ZIP', 'GARAGE', 'LOTSIZE']` in the hopes of getting clear localized clusters, and possibly separate clusters between the more expensive and less expensive homes in a neighborhood.
 
-- #### Random Forests
 
- A random forest is a meta-estimator formed by an ensemble of decision trees each fitted over different subsamples of the dataset. The output value is then the mean of each decision tree's output values. Random forests are versatile and often the goto model when facing a new problem as they can help uncover the relative importance of features.
+We're going to attempt two distinct prediction pipelines -
 
-- #### Extremely Randomized Forests
+1. We predict sale price using only remarks. We predict sale price using our best GBRT model which includes all data but remarks and including clusters. We run these two columns of predictions through another regressor to make a third and final prediction using just those two predictions.
 
- Functionally equivalent with random forests but introduce more randomness when selecting a subset of features. This tends to reduce the variance of the model in exchange for a slight increase in bias.
-
-- #### Gradient Tree Boosting  
-
- Another ensemble method, gradient boosted regression trees form ensembles of weaker decision learners that improve on their predecessor's estimate by chaining a new tree on the error of the last tree.
-
-- #### Least Angle
-
- Least angle regression is a linear regression algorithm typically used when overfitting is a concern or when analyzing a sparse matrix.
-
-### Clustering
-
-- #### MeanShift
-
- Mean shift by itself is a technique for locating maximas in a density function. Mean shift clustering works by assuming that the input data is a sampling from an underlying density function. It then uses mean shift appropriately to uncover modes in the feature space (clusters of similar values).
-
-### Matrix Decomposition
-
-- #### Truncated Singular Value Decomposition
-
- Matrix decomposition algorithm used to reduce the dimensionality of an input matrix. In the context that we're using it (word frequency matrices) it's actually called latent semantic analysis.
-
-### Feature Extraction
-
-- #### tf-idf
-
- Term frequency inverse document frequency. This term frequency transformation will reweight the term frequency of a blob by the inverse of the commonality of the term across all blobs. That is, it'll scale down the reported frequencies of common words and scale up the frequencies of unique words. This is a common technique to reflect word importance and help summarize text.
+2. We predict sale price using only remarks. We concatenate this predicted sale price calculated from remarks with the clusters and append them to the original data set. We then run our best GBRT model over this data set to generate a final prediction.
 
 
 # Results
@@ -466,8 +480,8 @@ rf = GradientBoostingRegressor(
 And these are the scores and predictions for our newly tuned GBRT. While our overall R<sup>2</sup> score has only gone up a bit, our error percentile accuracy has increased quite significantly.
 
 ```
-MSE Accuracy: 0.889946546207
-MSE Across 5 Folds: [ 0.8579455   0.84761359  0.87830055  0.85210753  0.8764793 ]
+Accuracy Across 0 Folds: 0.889946546207
+Accuracy Across 5 Folds: [ 0.8579455   0.84761359  0.87830055  0.85210753  0.8764793 ]
 95% Confidence Interval: 0.862 (+/- 0.025)  
           Predicted                      Sale Price          
 
@@ -601,8 +615,146 @@ well maintained ranch                  0.104327997492
 
 The next iteration will see us attempt to incorporate the predictions from our realtor remarks into our best model to see if we can improve accuracy further.
 
-
 ## Iteration 3
+
+One of the things I failed to mention in the corresponding methods section is that in this iteration I also ran the best GBRT model through another more intensive RandomSearch to fine-tune it's parameters. The score and predictions for the new best GBRT model that doesn't use clusters or remarks is below -
+
+```
+Accuracy: 0.896683470274
+(Mean) MAPE: 0.100890029598
+Accuracy Across 5 Folds: [ 0.88300328  0.88441925  0.88202692  0.86018513  0.87406707]
+95% Confidence Interval: 0.877 (+/- 0.018)
+
+        Predicted                         Actual            
+
+          417,502                        420,000            
+          450,856                        460,200            
+          813,658                        791,000            
+          555,995                        515,000            
+          946,085                        932,500            
+          592,151                        675,000            
+         2,744,215                      3,808,303           
+          727,037                        535,000            
+          507,163                        512,000            
+          278,779                        293,249            
+          759,306                        861,000            
+          416,052                        433,000            
+          771,374                        812,500            
+          637,847                        575,900            
+          472,047                        455,000            
+          711,582                        675,000            
+          473,924                        498,000            
+          748,190                        755,000            
+          456,516                        440,000            
+          477,551                        395,000            
+          601,849                        565,000            
+          988,696                       1,060,000           
+         1,134,641                       975,000            
+          413,623                        425,000            
+          291,591                        265,000
+```
+
+| | Default GBRT | Tuned GBRT | Re-Tuned GBRT | Zillow |
+| --------- | :-------: | :-----: | :------: | :----: |
+| Within 5% | 0.286 | 0.313 | 0.354 | 0.353 |
+| Within 10% | 0.528 | 0.573 | 0.625 | 0.626 |
+| Within 20% | 0.823 | 0.854 | 0.888 | 0.878 |
+
+For the first time so far we're actually beating Zillow in both the 5% and 20% percentiles. Lets see if we can improve on it using the pipelines. The two aforementioned forms of putting the regressors together are -
+
+1. We predict sale price using only remarks. We predict sale price using our best GBRT model which includes all data but remarks and including clusters. We run these two columns of predictions through another regressor to make a third and final prediction using just those two predictions.
+
+  ```
+  Accuracy: 0.856986478518
+  (Mean) MAPE: 0.106811866976
+  (Median) MAPE: 0.0791124561404
+  MSE Across 5 Folds: [ 0.86926607  0.80004628  0.77608881  0.87793983  0.88351014]
+  95% Confidence Interval: 0.841 (+/- 0.087)
+
+            Predicted                        Actual            
+
+             940,580                        910,000            
+             383,424                        256,155            
+             361,510                        321,000            
+             960,995                        945,000            
+             604,319                        360,000            
+             482,669                        495,000            
+             398,181                        430,000            
+             635,699                        619,900            
+            1,451,480                      1,860,000           
+             286,226                        225,000            
+             549,987                        525,000            
+             697,171                        670,000            
+             353,665                        339,900            
+             686,366                        725,000            
+             761,115                        744,500            
+             250,814                        167,000            
+             821,694                       1,215,000           
+             607,381                        545,000            
+             532,595                        593,000            
+             589,121                        600,000            
+             515,685                        422,000            
+             545,706                        510,000            
+             518,767                        660,000            
+             502,793                       1,200,000           
+             409,316                        225,000
+  ```
+
+  | | Default GBRT | Tuned GBRT | Re-Tuned GBRT | Pipeline 1 | Zillow |
+  | --------- | :-------: | :-----: | :------: | :----: | :----: | :----: |
+  | Within 5% | 0.286 | 0.313 | 0.354 | 0.330 | 0.353 |
+  | Within 10% | 0.528 | 0.573 | 0.625 | 0.601 | 0.626 |
+  | Within 20% | 0.823 | 0.854 | 0.888 | 0.875 | 0.878 |
+
+  Unfortunately this pipeline topology seems to have gone backwards. Every score seems to be lower than our base GBRT that doesn't incorporate remarks or clustering.
+
+2. We predict sale price using only remarks. We concatenate this predicted sale price calculated from remarks with the clusters and append them to the original data set. We then run our best GBRT model over this data set to generate a final prediction.
+
+  ```
+  Accuracy: 0.901817881373
+  (Mean) MAPE: 0.0969011296405
+  (Median) MAPE: 0.072416395652
+  MSE Across 5 Folds: [ 0.87745935  0.90169133  0.90508423  0.86173398  0.87516556]
+  95% Confidence Interval: 0.884 (+/- 0.032)
+
+            Predicted                        Actual            
+
+             434,294                        408,000            
+             661,798                        650,000            
+             377,284                        342,000            
+             432,530                        422,000            
+             293,811                        348,000            
+             505,317                        492,500            
+             508,503                        555,000            
+             322,166                        350,000            
+             586,081                        586,750            
+             553,451                        435,000            
+             461,865                        405,000            
+             794,973                        760,000            
+             285,059                        267,000            
+             623,925                        615,650            
+             384,528                        412,500            
+             406,504                        443,000            
+             719,200                        867,725            
+             424,610                        436,400            
+             328,531                        362,000            
+             562,457                        619,000            
+             368,481                        290,000            
+             540,498                        575,000            
+             712,789                        660,000            
+             630,080                        573,900            
+             750,046                        707,000
+
+  ```
+
+  | | Default GBRT | Tuned GBRT | Re-Tuned GBRT | Pipeline 1 | Pipeline 2 | Zillow |
+  | --------- | :-------: | :-----: | :------: | :----: | :----: | :----: |
+  | Within 5% | 0.286 | 0.313 | 0.354 | 0.330 | 0.364 | 0.353 |
+  | Within 10% | 0.528 | 0.573 | 0.625 | 0.601 | 0.643 | 0.626 |
+  | Within 20% | 0.823 | 0.854 | 0.888 | 0.875 | 0.898 | 0.878 |
+
+  This pipeline seems to have faired much better and given us our best predictions yet. It's beating Zillow in every error percentile category and it's even beating Zillow when it comes to the median absolute percent error (Zillow claims a 7.5% median error in the Boston area). For the most part the predictions are very reasonable and well within the margin of error given to a realtor or appraiser. There are however some outliers that happen to be more than $100,000 off as well discuss in the [Discussion](#discussion) section.
+
 
 # Discussion
 
