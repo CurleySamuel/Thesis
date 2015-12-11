@@ -183,6 +183,37 @@ Another one of those utilities in sklearn is GridSearch. How GridSearch works is
 
 ## Iteration 2
 
+The iteration of the realtor remarks. Up until now I've been ignoring the realtor's remarks in favor of the hard numerical and categorical data. However now that we've run out of that data we have to turn towards the realtor's remarks in an effort to further improve our model. Typically only a paragraph long, the remarks contain crucial information not mentioned in the other data like proximity to town centers, special features or traits about the home, or even something as subtle yet fiscally significant like 'remodeled kitchen'. Here's a selection of actual remarks that we'll be analyzing in this iteration -
+
+---
+
+> The classic Colonial is prominently sited in popular Patriot Hill neighborhood.  The first floor offers a front to back LR, DR, cherry kitchen and inviting family room with French doors that open to a three-season porch.  Upstairs is the MBR with updated bath, three family bedrooms and bath, and a secluded home office.  The finished lower level offers additional family space.  Highlights include hardwood flooring, new windows and siding plus recent roof and furnace.  Pool available.
+
+---
+
+> An imposing Turn of the century Colonial Revival set back on 1.28 acres on  the Chester Brook . Twelve rooms ,5 bedrooms+,3 fireplaces, 2 full baths, 2 car garage front and back stairways. Wonderful period detail inside and out. Listed on the local historic register as "the Charles Whitney House" and is considered "the city's best example of a cross-gabled gambrel roofed Colonial Revival". Updates will be required to this classic home. All showings require confirmed appointment of 24 hrs.
+
+---
+
+> This classic colonial is conveniently located on a Cul-de-sac in Arlington Heights within a short distance to The Minuteman Bike Path, area amenities, schools, parks, transportation and major routes.  Hardwood floors throughout, crown molding on first floor and bonus walk-up attic.  The light filled first floor bedroom with private full bath can be used as a family room/office.  Recently painted inside and out and updated windows, this home offers a private yard with patio off the kitchen.
+
+---
+
+> A masterpiece of vision,liveability & quality. Holly Cratsley of Nashawtuc Architects in concert with Molly Tee of Deck House designed a one of a kind gem redone in phases to perfection. 2 story atrium foyer. Boston Design Center european kitchen with granite & re-cycling center. Breakfast room with walk- in pantry.peaceful family room. Dramatic 2nd fl.great room. Screened porch. A/C 2nd floor. Partial basement. Pond for swimming, skating,canoeing & neighbors gathering. Hiking trails closeby.
+
+---
+
+There's a few advanced unsupervised learning methods you can apply to text blob analysis but for the sake of simplicity we'll be sticking to a supervised technique that's ultimately based on word frequency. The first step is to tokenize the strings and break the paragraph into a matrix of word frequencies. Unfortunately word frequencies don't tell us much as well, some words are naturally more common than others. To offset this effect we perform what's called a tfidf transformation (term frequency inverse document frequency) which re-weights every word by the inverse of how common that word is across every other text blob. This way common words like 'the' will have a negligible weight compared with more uncommon words like 'masterpiece'.
+
+One of the problems with this technique is we start to lose meaning as we take words out of context. Take the example string, "Great location, noise levels bad". Using the above technique we'll tokenize the string into the sorted array `['bad', 'great', 'levels', 'location', 'noise']` and then attempt to perform analysis on that array despite that array having lost all contextual meaning. A method of preserving context is instead of splitting based on words, why not try splitting on both words and pairs of words? The new array would be `['bad', 'great', 'great location', 'levels', 'levels bad', 'location', 'location noise', 'noise', 'noise levels']` which starts to get across some of the original sentiments better than the single word alternative. My final tuned model took this even further by generating n-grams (contiguous sequence of N words from text) of up to four words long.
+
+Now we have a sparse matrix with size `(21657, 83968)` containing re-weighted word frequencies, but attempting to train a regressor on a matrix this sparse and with this many features will take forever and eat all available memory while it's at it. Instead we'll first pass the sparse matrix through the matrix decomposition algorithm truncated SVD to reduce it to size `(21657, 500)`. While I'm hesitant to get into the details of the latent semantic analysis we're doing here I do want to say that it's a very well known technique of analyzing and representing the contextual based meaning of words and phrases while also reducing matrix dimensionality.
+
+The final step in this pipeline is to perform some form of regression on our matrix. Through extensive empirical testing I found that the ensemble methods I've used previously weren't really delivering a good amount of accuracy with this new set of data. Instead I settled on the linear model of Least-angle regression (LARS) for several reasons: it's fast; it works well with high dimensional data; it reliably performed the best out of all the other linear models.
+
+Also in this iteration were more randomized searches across the space of parameter combinations to tune the tfidf, tsvd, and lars transformations.
+
+
 ## Iteration 3
 
 ## The Models
