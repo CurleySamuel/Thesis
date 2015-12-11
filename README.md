@@ -121,13 +121,73 @@ The unfortunate consequence of this feature extraction is that we start with mat
 
 ## Iteration 1
 
+In this iteration we took the best three models from the previous iteration and introduced cross validation, a technique used to minimize overfitting (see [Scoring](#Scoring)). The selected models are below -
+
+- Random Forest Regressor using all but realtor remarks
+- Extremely Randomized Trees Regressor using all but realtor remarks
+- Gradient Boosted Regression Trees using all but realtor remarks
+
+We then picked the best performing model of the three after cross validation and starting tuning the model's hyperparameters. A hyperparameter of a model are more or less a specific set of constants used in a model that affect the ultimate accuracy of the model. In the case of gradient boosted regression trees the hyperparameters include (list and descriptions courtesy of scikit-learn documentation) -
+
+
+- ###### loss : {‘ls’, ‘lad’, ‘huber’, ‘quantile’}, optional (default=’ls’)
+
+ loss function to be optimized. ‘ls’ refers to least squares regression. ‘lad’ (least absolute deviation) is a highly robust loss function solely based on order information of the input variables. ‘huber’ is a combination of the two. ‘quantile’ allows quantile regression (use alpha to specify the quantile).
+- ###### learning_rate : float, optional (default=0.1)
+
+ learning rate shrinks the contribution of each tree by learning_rate. There is a trade-off between learning_rate and n_estimators.
+- ###### n_estimators : int (default=100)
+
+ The number of boosting stages to perform. Gradient boosting is fairly robust to over-fitting so a large number usually results in better performance.
+- ###### max_depth : integer, optional (default=3)
+
+ maximum depth of the individual regression estimators. The maximum depth limits the number of nodes in the tree.
+- ###### min_samples_split : integer, optional (default=2)
+
+ The minimum number of samples required to split an internal node.
+- ###### min_samples_leaf : integer, optional (default=1)
+
+ The minimum number of samples required to be at a leaf node.
+- ###### min_weight_fraction_leaf : float, optional (default=0.)
+
+ The minimum weighted fraction of the input samples required to be at a leaf node.
+- ###### subsample : float, optional (default=1.0)
+
+ The fraction of samples to be used for fitting the individual base learners. If smaller than 1.0 this results in Stochastic Gradient Boosting. subsample interacts with the parameter - n_estimators. Choosing subsample < 1.0 leads to a reduction of variance and an increase in bias.
+- ###### max_features : int, float, string or None, optional (default=None)
+
+ The number of features to consider when looking for the best split:
+- ###### alpha : float (default=0.9)
+
+ The alpha-quantile of the huber loss function and the quantile loss function.
+
+
+While it may seem persnickety to worry about fine-tuning models already, the term 'fine-tune' is perhaps a misnomer. While fine-tuning my models I noticed some configurations which achieved scores significantly above the default but I also achieved scores that were in the single digits. Just by lowering the minimum weighted fraction of samples required to be a leaf I could end up reducing my model accuracy from 0.88 to 0.02. It also means that perhaps the default model isn't performing as well as it can and we may be able to squeeze out a significant bit of accuracy before moving on to more complex additions. There are three primary techniques for tuning the hyperparameters of a model. You can guess, you can try random combinations, or you can try every possible combination. I tried all three.
+
+### Guessing
+
+There's one variable which guessing works quite well with - n_estimators which is the number of boosting stages to perform. Gradient Tree Boosting is an ensemble method in that it forms ensembles of weaker decision learners, each ensemble improving on their predecessor's estimate by chaining a new tree on the error of the last tree. The number of boosting stages is how many of these improvement stages occur. We can guess this constant because at every iteration if we measure the deviance of both the training set and the testing set and graph this deviance, we can tell when improvement starts slowing down. From there we can select a reasonable trade off between training time and trailing off accuracy improvements.
+
+![Graph of Deviance vs. Iterations](/images/figure_1.png)
+
+![Graph of Improvement vs. Iterations](/images/figure_2.png)
+
+### Randomly Guessing
+
+The Python machine learning framework Scikit-learn (colloquially known as 'sklearn') includes a helper module with utilities to fine-tune models. One of these utilities is RandomSearch. In RandomSearch you define distributions or lists of possible values for each parameter. RandomSearch will then run for N iterations, at each iteration randomly selected each parameter, fitting a model with those parameters and scoring the fitted model. After hitting the specified number of iterations it'll then report the best parameter combination it's had so far. While not exhaustive it tends to perform quite well while trying significantly fewer combinations than the next utility, GridSearch.
+
+### Guessing Everything
+
+Another one of those utilities in sklearn is GridSearch. How GridSearch works is you define a list of possible values for every parameter defining a grid of possible combinations. GridSearch will then iterate over every combination, train your model using that combination of parameters and score it's accuracy. After exhausting the space of combinations it'll then report the top N configurations that produced the highest score. While incredibly useful given a small set of combinations, because of innate combination theory this utility is often time prohibitive when you want to search a large grid of combinations.
+
+
 ## Iteration 2
 
 ## Iteration 3
 
 ## The Models
 
-We've talked about a variety of models and algorithms used to form our estimation pipelines. While this paper does expect some level of statistical knowledge; it doesn't make the leap that the reader is familiar with the intricacies of various regression models. As such I wanted to include a brief section dedicated to a quick overview of the models and algorithms that we've seen.
+We've talked about a variety of models and algorithms used to form our estimation pipelines. While this paper does expect some level of statistical knowledge; it doesn't make the leap that the reader is familiar with the intricacies of various regression models. As such I wanted to include a brief section dedicated to a quick overview of the models and algorithms that we've seen. Because my primary machine learning library used was scikit-learn - all regressors and algorithms below used the implementation that can be found in that package.
 
 ### Regression
 
@@ -236,6 +296,7 @@ For every model in this iteration we've included both the R<sup>2</sup> score as
 ```
 
 ##### Random Forest Regressor using only `LAT/LNG/AGE/SQFT/BEDS/BATHS/GARAGE/LOTSIZE`
+
 ```
           Accuracy: 0.860120147944
 
@@ -260,6 +321,7 @@ For every model in this iteration we've included both the R<sup>2</sup> score as
           358,586                        389,900                        389,900           
           476,083                        399,900                        399,000           
           462,015                        429,900                        422,000
+
 ```
 
 ##### Random Forest Regressor using all but realtor remarks
@@ -342,7 +404,19 @@ For every model in this iteration we've included both the R<sup>2</sup> score as
           320,100                        319,900                        317,500           
           263,166                        279,900                        277,000           
           635,963                        799,900                        765,000           
-          953,021                        899,900                        893,000            ```
+          953,021                        899,900                        893,000           
+```
+
+Judging purely by score the final model using the boosting technique on our entire set of data minus realtor remarks seems to be the most accurate (we'll incorporate the remarks in a later iteration). As you can see in the sample of predictions made there are several cases where the prediction is eerily accurate and gets within $10,000 of the final sale price but there's also a fair share of predictions as far off as half a million dollars. Below is a chart comparing our percentile accuracy of our most accurate model so far with Zillow's reported accuracy in Boston, MA.  
+
+| | Our GBRT | Zillow |
+| --------- | :-------: | :----: |
+| Within 5% | 0.286 | 0.353 |
+| Within 10% | 0.528 | 0.626 |
+| Within 20% | 0.823 | 0.878 |
+
+It's getting there. Our numbers aren't quite close enough to serve as a reliable tool yet but it's worth pointing out what a result we're getting with our limited data. Zillow's numbers have access to historical home data including historical sale prices (if a home sold for $760,000 two years ago, predicting it'll sell for $760,000 + relative area growth would be an easy but comparably accurate algorithm), but all our algorithm has is the physical features of a home. It has to play the role of an appraiser using what accounts to only the information you'd find on an real estate shop window flyer, a significantly tougher job. The next iteration will take the best model from this iteration - gradient boosted regression trees, and build upon it.
+
 
 ## Iteration 1
 
