@@ -1,8 +1,4 @@
-# Realtor in a Regressor: Predicting Boston Area Home Sale Prices Using Only Physical Features
-
 # Getting Zillow-like Performance with a Subset of the Data: Predicting Boston Area Home Sale Prices Using Only Physical Features
-
-# A Hard Look at the Soft Science of Real Estate: Predicting Boston Area Home Sale Prices Using Only Physical Features
 
 # Abstract
 
@@ -706,16 +702,16 @@ For the first time so far we're actually beating Zillow in both the 5% and 20% p
   | Within 10% | 0.528 | 0.573 | 0.625 | 0.601 | 0.626 |
   | Within 20% | 0.823 | 0.854 | 0.888 | 0.875 | 0.878 |
 
-  Unfortunately this pipeline topology seems to have gone backwards. Every score seems to be lower than our base GBRT that doesn't incorporate remarks or clustering.
+  Unfortunately this pipeline topology seems to have gone backwards. Every score is lower than our base GBRT that doesn't incorporate remarks or clustering.
 
 2. We predict sale price using only remarks. We concatenate this predicted sale price calculated from remarks with the clusters and append them to the original data set. We then run our best GBRT model over this data set to generate a final prediction.
 
   ```
-  Accuracy: 0.901817881373
-  (Mean) MAPE: 0.0969011296405
-  (Median) MAPE: 0.072416395652
-  MSE Across 5 Folds: [ 0.87745935  0.90169133  0.90508423  0.86173398  0.87516556]
-  95% Confidence Interval: 0.884 (+/- 0.032)
+  Accuracy: 0.916676192559
+  (Mean) MAPE: 0.0960355314487
+  (Median) MAPE: 0.0712364296736
+  MSE Across 5 Folds: [ 0.92454141  0.89295816  0.89372988  0.87583224  0.86605714]
+  95% Confidence Interval: 0.891 (+/- 0.039)
 
             Predicted                        Actual            
 
@@ -749,16 +745,46 @@ For the first time so far we're actually beating Zillow in both the 5% and 20% p
 
   | | Default GBRT | Tuned GBRT | Re-Tuned GBRT | Pipeline 1 | Pipeline 2 | Zillow |
   | --------- | :-------: | :-----: | :------: | :----: | :----: | :----: |
-  | Within 5% | 0.286 | 0.313 | 0.354 | 0.330 | 0.364 | 0.353 |
-  | Within 10% | 0.528 | 0.573 | 0.625 | 0.601 | 0.643 | 0.626 |
-  | Within 20% | 0.823 | 0.854 | 0.888 | 0.875 | 0.898 | 0.878 |
+  | Within 5% | 0.286 | 0.313 | 0.354 | 0.330 | 0.366 | 0.353 |
+  | Within 10% | 0.528 | 0.573 | 0.625 | 0.601 | 0.654 | 0.626 |
+  | Within 20% | 0.823 | 0.854 | 0.888 | 0.875 | 0.899 | 0.878 |
 
   This pipeline seems to have faired much better and given us our best predictions yet. It's beating Zillow in every error percentile category and it's even beating Zillow when it comes to the median absolute percent error (Zillow claims a 7.5% median error in the Boston area). For the most part the predictions are very reasonable and well within the margin of error given to a realtor or appraiser. There are however some outliers that happen to be more than $100,000 off as well discuss in the [Discussion](#discussion) section.
 
 
 # Discussion
 
+
+
 # Conclusions
+
+To quote myself from the [Introduction](#introduction) -
+
+> "The goal isn't to beat common home valuation tools like Zillow and Redfin at their own game. Instead the goal is to get similar accuracy using a much smaller subset of data for each home..."
+
+To this purpose we've succeeded. Instead of just matching Zillow we've beaten Zillow's estimation ability both in the Boston area (7.5%) and nationally (7.9%). This in itself is impressive if only because we're using a subset of the data that Zillow's using in their estimations. Furthermore we've shown that achieving a reliable estimate of a home's sale price given only it's physical features and a short description is possible.
+
+|    | Our Best | Zillow |
+| --- | :----: | :----: |
+| (Median) MAPE | 0.071 | 0.075 |
+| (Predictions) Within 5% | 0.366 | 0.353 |
+| (Predictions) Within 10% | 0.654 | 0.626 |
+| (Predictions) Within 20% | 0.899 | 0.878 |
+
+If we wanted to continue increasing our accuracy there are a few key paths we could go down -
+
+1. Unsupervised learning
+
+  Neural networks and other forms of unsupervised learning may be more suited to the intrinsically complex problem of appraising homes.
+
+2. Larger sample size
+
+  I've amassed a dataset of 21,657 homes but the more data the better. Especially if planning on going down the route of unsupervised learning - a large sample size is crucial.
+
+3. More types of data
+
+  So far we've strictly dealt with the physical characteristics of a home as well as a brief remark about it. If we decided to also use historical data like past sale prices like Zillow I'd be surprised if the accuracy went anywhere but up. There's also a plethora of additional features we could extract like distance from town centers, proximity to public transport, noise levels, walking scores, etc. All of those would have an influence on the value of a home and wouldn't require any additional data on the home to extract.
+
 
 # Acknowledgements
 
