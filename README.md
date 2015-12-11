@@ -100,39 +100,39 @@ The data for 21,657 homes was sourced from the multiple listing service (MLS).
 
 We'll talk about a variety of models and algorithms used to form our estimation pipelines. While this paper does expect some level of statistical knowledge; it doesn't make the leap that the reader is familiar with the intricacies of various regression models. As such I wanted to include a brief section dedicated to a quick overview of the models and algorithms that we'll see. Because my primary machine learning library used was scikit-learn - all regressors and algorithms below used the implementation that can be found in that package.
 
-### Regression
+#### Regression
 
-- #### Random Forests
+- ##### Random Forests
 
  A random forest is a meta-estimator formed by an ensemble of decision trees each fitted over different subsamples of the dataset. The output value is then the mean of each decision tree's output values. Random forests are versatile and often the goto model when facing a new problem as they can help uncover the relative importance of features.
 
-- #### Extremely Randomized Forests
+- ##### Extremely Randomized Forests
 
  Functionally equivalent with random forests but introduce more randomness when selecting a subset of features. This tends to reduce the variance of the model in exchange for a slight increase in bias.
 
-- #### Gradient Tree Boosting  
+- ##### Gradient Tree Boosting  
 
  Another ensemble method, gradient boosted regression trees form ensembles of weaker decision learners that improve on their predecessor's estimate by chaining a new tree on the error of the last tree.
 
-- #### Least Angle
+- ##### Least Angle
 
  Least angle regression is a linear regression algorithm typically used when overfitting is a concern or when analyzing a sparse matrix.
 
-### Clustering
+#### Clustering
 
-- #### MeanShift
+- ##### MeanShift
 
  Mean shift by itself is a technique for locating maximas in a density function. Mean shift clustering works by assuming that the input data is a sampling from an underlying density function. It then uses mean shift appropriately to uncover modes in the feature space (clusters of similar values).
 
-### Matrix Decomposition
+#### Matrix Decomposition
 
-- #### Truncated Singular Value Decomposition
+- ##### Truncated Singular Value Decomposition
 
  Matrix decomposition algorithm used to reduce the dimensionality of an input matrix. In the context that we're using it (word frequency matrices) it's actually called latent semantic analysis.
 
-### Feature Extraction
+#### Feature Extraction
 
-- #### tf-idf
+- ##### tf-idf
 
  Term frequency inverse document frequency. This term frequency transformation will reweight the term frequency of a blob by the inverse of the commonality of the term across all blobs. That is, it'll scale down the reported frequencies of common words and scale up the frequencies of unique words. This is a common technique to reflect word importance and help summarize text.
 
@@ -754,7 +754,11 @@ For the first time so far we're actually beating Zillow in both the 5% and 20% p
 
 # Discussion
 
+The final model in the final iteration has done what we set out to do - beat Zillow's accuracy. However it's still not perfect and systematically under predicts homes when home value starts exceeding $2,000,000 as seen in the below graph. From $0 to $2,000,000 there's a fairly good mix of predictions that are both above and under actual but as soon as we hit a threshold the vast majority of our predictions are significantly below actual. A partial explanation could be the noticeably fewer number of samples of homes with values above $2M and so the model simply doesn't have enough learning criteria to predict well.
 
+![Graph of Actual Sale Price vs. Predicted](images/figure_4.png)
+
+Regardless it's evident that most of my prediction error is with higher value homes and there's room to improve the models to account for that. Another fault with the existing model is the clustering algorithm itself. As it is MeanShift is only generating 26 different clusters over ~16,000 homes creating an average of 615 homes per cluster. These clusters are far too large to be of any practical use as the intended purpose is to emphasis localized clusters of roughly 1 - 10 nearby homes. While shifting the algorithm to KMeans would allow us to specify the number of clusters it'll cause a substantial performance hit because of the innate relative complexity.
 
 # Conclusions
 
@@ -787,5 +791,7 @@ If we wanted to continue increasing our accuracy there are a few key paths we co
 
 
 # Acknowledgements
+
+Thanks to Dani Fleming and Marcus Collins, both realtors in Massachusetts for allowing me MLS access for the data and providing the necessary realty background.
 
 # References
