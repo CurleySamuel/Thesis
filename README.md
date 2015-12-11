@@ -164,7 +164,7 @@ We then picked the best performing model of the three after cross validation and
 
 While it may seem persnickety to worry about fine-tuning models already, the term 'fine-tune' is perhaps a misnomer. While fine-tuning my models I noticed some configurations which achieved scores significantly above the default but I also achieved scores that were in the single digits. Just by lowering the minimum weighted fraction of samples required to be a leaf I could end up reducing my model accuracy from 0.88 to 0.02. It also means that perhaps the default model isn't performing as well as it can and we may be able to squeeze out a significant bit of accuracy before moving on to more complex additions. There are three primary techniques for tuning the hyperparameters of a model. You can guess, you can try random combinations, or you can try every possible combination. I tried all three.
 
-### Guessing
+#### Guessing
 
 There's one variable which guessing works quite well with - n_estimators which is the number of boosting stages to perform. Gradient Tree Boosting is an ensemble method in that it forms ensembles of weaker decision learners, each ensemble improving on their predecessor's estimate by chaining a new tree on the error of the last tree. The number of boosting stages is how many of these improvement stages occur. We can guess this constant because at every iteration if we measure the deviance of both the training set and the testing set and graph this deviance, we can tell when improvement starts slowing down. From there we can select a reasonable trade off between training time and trailing off accuracy improvements.
 
@@ -172,20 +172,19 @@ There's one variable which guessing works quite well with - n_estimators which i
 
 ![Graph of Improvement vs. Iterations](images/figure_2.png)
 
-### Randomly Guessing
+#### Randomly Guessing
 
 The Python machine learning framework Scikit-learn (colloquially known as 'sklearn') includes a helper module with utilities to fine-tune models. One of these utilities is RandomSearch. In RandomSearch you define distributions or lists of possible values for each parameter. RandomSearch will then run for N iterations, at each iteration randomly selected each parameter, fitting a model with those parameters and scoring the fitted model. After hitting the specified number of iterations it'll then report the best parameter combination it's had so far. While not exhaustive it tends to perform quite well while trying significantly fewer combinations than the next utility, GridSearch.
 
-### Guessing Everything
+#### Guessing Everything
 
 Another one of those utilities in sklearn is GridSearch. How GridSearch works is you define a list of possible values for every parameter defining a grid of possible combinations. GridSearch will then iterate over every combination, train your model using that combination of parameters and score it's accuracy. After exhausting the space of combinations it'll then report the top N configurations that produced the highest score. While incredibly useful given a small set of combinations, because of innate combination theory this utility is often time prohibitive when you want to search a large grid of combinations.
 
 
 ## Iteration 2
 
-The iteration of the realtor remarks. Up until now I've been ignoring the realtor's remarks in favor of the hard numerical and categorical data. However now that we've run out of that data we have to turn towards the realtor's remarks in an effort to further improve our model. Typically only a paragraph long, the remarks contain crucial information not mentioned in the other data like proximity to town centers, special features or traits about the home, or even something as subtle yet fiscally significant like 'remodeled kitchen'. Here's a selection of actual remarks that we'll be analyzing in this iteration -
+The iteration of the realtor remarks. Up until now I've been ignoring the realtor's remarks in favor of the hard numerical and categorical data. However now that we've run out of that data we have to turn towards the realtor's remarks in an effort to further improve our model. Typically only a paragraph long, the remarks contain crucial information not mentioned in the other data like proximity to town centers, special features or traits about the home, or even something as subtle yet fiscally significant like 'remodeled kitchen'. Here's a selection of some actual remarks from our training data that we'll be analyzing in this iteration -
 
----
 
 > The classic Colonial is prominently sited in popular Patriot Hill neighborhood.  The first floor offers a front to back LR, DR, cherry kitchen and inviting family room with French doors that open to a three-season porch.  Upstairs is the MBR with updated bath, three family bedrooms and bath, and a secluded home office.  The finished lower level offers additional family space.  Highlights include hardwood flooring, new windows and siding plus recent roof and furnace.  Pool available.
 
@@ -201,13 +200,12 @@ The iteration of the realtor remarks. Up until now I've been ignoring the realto
 
 > A masterpiece of vision,liveability & quality. Holly Cratsley of Nashawtuc Architects in concert with Molly Tee of Deck House designed a one of a kind gem redone in phases to perfection. 2 story atrium foyer. Boston Design Center european kitchen with granite & re-cycling center. Breakfast room with walk- in pantry.peaceful family room. Dramatic 2nd fl.great room. Screened porch. A/C 2nd floor. Partial basement. Pond for swimming, skating,canoeing & neighbors gathering. Hiking trails closeby.
 
----
 
 There's a few advanced unsupervised learning methods you can apply to text blob analysis but for the sake of simplicity we'll be sticking to a supervised technique that's ultimately based on word frequency. The first step is to tokenize the strings and break the paragraph into a matrix of word frequencies. Unfortunately word frequencies don't tell us much as well, some words are naturally more common than others. To offset this effect we perform what's called a tfidf transformation (term frequency inverse document frequency) which re-weights every word by the inverse of how common that word is across every other text blob. This way common words like 'the' will have a negligible weight compared with more uncommon words like 'masterpiece'.
 
-One of the problems with this technique is we start to lose meaning as we take words out of context. Take the example string, "Great location, noise levels bad". Using the above technique we'll tokenize the string into the sorted array `['bad', 'great', 'levels', 'location', 'noise']` and then attempt to perform analysis on that array despite that array having lost all contextual meaning. A method of preserving context is instead of splitting based on words, why not try splitting on both words and pairs of words? The new array would be `['bad', 'great', 'great location', 'levels', 'levels bad', 'location', 'location noise', 'noise', 'noise levels']` which starts to get across some of the original sentiments better than the single word alternative. My final tuned model took this even further by generating n-grams (contiguous sequence of N words from text) of up to four words long.
+One of the problems with this technique is we start to lose meaning as we take words out of context. Take the example string, "Great location, noise levels bad". Using the above technique we'll tokenize the string into the sorted array `['bad', 'great', 'levels', 'location', 'noise']` and then attempt to perform analysis on that array despite that array having lost all contextual meaning. A method of preserving context is instead of splitting based on words why not try splitting on both words and pairs of words? The new array would be `['bad', 'great', 'great location', 'levels', 'levels bad', 'location', 'location noise', 'noise', 'noise levels']` which starts to get across some of the original sentiments better than the single word alternative. My final tuned model took this even further by generating n-grams (contiguous sequence of N words from text) of up to four words long.
 
-Now we have a sparse matrix with size `(21657, 83968)` containing re-weighted word frequencies, but attempting to train a regressor on a matrix this sparse and with this many features will take forever and eat all available memory while it's at it. Instead we'll first pass the sparse matrix through the matrix decomposition algorithm truncated SVD to reduce it to size `(21657, 500)`. While I'm hesitant to get into the details of the latent semantic analysis we're doing here I do want to say that it's a very well known technique of analyzing and representing the contextual based meaning of words and phrases while also reducing matrix dimensionality.
+Now we have a sparse matrix with size `(21657, 83968)` where each column is a unique word or phrase, each row is a specific home, and each cell contains the tfidf re-weighted frequency of that word/phrase in that home's remarks. But attempting to train a regressor on a matrix this sparse and with this many features will take forever and eat all available memory while it's at it. Instead we'll first pass the sparse matrix through the matrix decomposition algorithm truncated SVD to reduce it to size `(21657, 500)`. While I'm hesitant to get into the details of the latent semantic analysis we're doing here I do want to say that it's a very well known technique of analyzing and representing the contextual based meaning of words and phrases while also reducing matrix dimensionality.
 
 The final step in this pipeline is to perform some form of regression on our matrix. Through extensive empirical testing I found that the ensemble methods I've used previously weren't really delivering a good amount of accuracy with this new set of data. Instead I settled on the linear model of Least-angle regression (LARS) for several reasons: it's fast; it works well with high dimensional data; it reliably performed the best out of all the other linear models.
 
@@ -438,7 +436,7 @@ For every model in this iteration we've included both the R<sup>2</sup> score as
           953,021                        899,900                        893,000           
 ```
 
-Judging purely by score the final model using the boosting technique on our entire set of data minus realtor remarks seems to be the most accurate (we'll incorporate the remarks in a later iteration). As you can see in the sample of predictions made there are several cases where the prediction is eerily accurate and gets within $10,000 of the final sale price but there's also a fair share of predictions as far off as half a million dollars. Below is a chart comparing our MAPE percentile accuracy of our most accurate model so far with Zillow's reported accuracy in Boston, MA.  
+Judging purely by score the final model using the boosting technique on our entire set of data minus realtor remarks seems to be the most accurate (we'll incorporate the remarks in a later iteration). As you can see in the sample of predictions made there are several cases where the prediction is eerily accurate and gets within $10,000 of the final sale price but there's also a fair share of predictions as far off as half a million dollars. Below is a chart comparing our error percentile accuracy of our most accurate model so far with Zillow's reported accuracy in Boston, MA.  
 
 | | Our GBRT | Zillow |
 | --------- | :-------: | :----: |
@@ -465,7 +463,7 @@ rf = GradientBoostingRegressor(
 )
 ```
 
-And these are the scores and predictions for our newly tuned GBRT. While our overall R<sup>2</sup> score has only gone up a bit, our MAPE percentile accuracy has increased quite significantly.
+And these are the scores and predictions for our newly tuned GBRT. While our overall R<sup>2</sup> score has only gone up a bit, our error percentile accuracy has increased quite significantly.
 
 ```
 MSE Accuracy: 0.889946546207
@@ -511,6 +509,98 @@ Note that the above graph does not account for correlations between features and
 
 
 ## Iteration 2
+
+Given all the work required to extract features from the realtor remarks - was it worth it? The score and sample of predictions of LARS using only the realtor remarks and no other data are below -
+
+```
+Accuracy Across 0 Folds: 0.582715416131
+Accuracy Across 5 Folds: [ 0.50974483  0.56988835  0.48688742  0.59240575  0.5837315 ]
+Accuracy 95% Confidence Interval: 0.549 (+/- 0.083)
+
+          Predicted                        Actual            
+
+           905,131                        725,000            
+           461,453                        485,000            
+           512,924                        394,000            
+           644,302                        595,000            
+           419,859                        405,000            
+           743,663                        448,800            
+           540,983                        533,000            
+           782,918                        680,000            
+           533,663                        615,000            
+           588,496                        938,545            
+           664,178                        630,000            
+           566,246                        860,000            
+           507,225                        320,000            
+           419,974                        322,000            
+           461,453                        485,000            
+          1,061,357                       964,500            
+           371,848                        341,500            
+           562,445                        400,000            
+          1,228,060                      1,800,000           
+           375,503                        580,000            
+           691,279                        530,000            
+           649,725                        535,000            
+           556,994                        634,500            
+           324,337                        446,000            
+           190,026                        330,000
+```
+
+While the accuracy isn't what we've been seeing with the other data it's still remarkably accurate considering the data it's actually using. It's able to look at a paragraph like -
+
+> 'WELL MAINTAINED RANCH HOME IN WESTFORD!  Enter into Bright Living Room area with Hardwood Flooring. Great Opportunity to Own in Westford!  3 Bedroom, 1 Bathroom Ranch Sits on Large, Private .80 Acre Lot. This Cozy Home Features Beautifully Refinished Gleaming Hardwood Floors, Eat-In Kitchen, Working Fireplace and oversized 2 Car Detached Garage.  Desirable Cul-De-Sac/Dead End Neighborhood.'
+
+And distinguish that as describing a $500,000 home versus a $600,000 home. While not accurate enough to stand by itself it may be accurate enough that when it's predictions are fed into our best model along with the normal data, our best model's accuracy may increase.
+
+Beyond it's help in forming predictions, by reaching into it's internal structure tfidf also allows us to discover what it believes the most 'important' phrases to be. Note that importance here doesn't necessarily imply valuable, all it means is that the most important phrases will be rare phrases that are used often for a single home but not often for other homes. Taking the quote above as an example, of the 139 phrases present the top 40 most important phrases are -
+
+```
+Phrase                                 Importance
+
+in westford                            0.147788853766        
+and oversized car                      0.132098956072        
+area with hardwood flooring            0.132098956072        
+flooring great                         0.132098956072        
+garage desirable                       0.132098956072        
+into bright                            0.129811902345        
+oversized car detached garage          0.129811902345        
+own in westford                        0.129811902345        
+refinished gleaming hardwood           0.129811902345        
+to own in westford                     0.129811902345        
+well maintained ranch home             0.129811902345        
+features beautifully                   0.127830766294        
+living room area                       0.127830766294        
+oversized car detached                 0.127830766294        
+bathroom ranch                         0.126083280451        
+working fireplace and                  0.126083280451        
+end neighborhood                       0.124520101098        
+maintained ranch home                  0.123106033368        
+refinished gleaming                    0.123106033368        
+ranch home in                          0.121815090673        
+ranch sits on                          0.121815090673        
+beautifully refinished                 0.119528036946        
+ranch sits                             0.119528036946        
+room area with                         0.119528036946        
+sits on large                          0.119528036946        
+this cozy home                         0.119528036946        
+home in westford                       0.115799415052        
+area with hardwood                     0.114997247718        
+westford                               0.111574244758        
+80                                     0.111531225274        
+cozy home                              0.111531225274        
+enter into                             0.109783739431        
+hardwood floors eat                    0.109783739431        
+hardwood floors eat in                 0.109783739431        
+on large private                       0.107734074474        
+this cozy                              0.106806492348        
+desirable cul                          0.106363579409        
+desirable cul de                       0.106363579409        
+desirable cul de sac                   0.106363579409        
+well maintained ranch                  0.104327997492
+```
+
+The next iteration will see us attempt to incorporate the predictions from our realtor remarks into our best model to see if we can improve accuracy further.
+
 
 ## Iteration 3
 
