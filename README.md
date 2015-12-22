@@ -795,3 +795,20 @@ If we wanted to continue increasing our accuracy there are a few key paths we co
 Thanks to Dani Fleming and Marcus Collins, both realtors in Massachusetts for allowing me MLS access for the data and providing the necessary realty background.
 
 # References
+
+- Edith, J., J. R. Leathwick, and T. Hastie. "A Working Guide to Boosted Regression Trees." Thesis. 2008. <i>Journal of Animal Ecology</i> 77.4 (2008): 802-13. Print.
+- Li, Cheng. "A Gentle Introduction to Gradient Boosting." (n.d.): n. pag. Web. 21 Dec. 2015.
+- Chen, Tianqi. "Introduction to Boosted Trees." (n.d.): n. pag. Web. 21 Dec. 2015.
+- Ogutu, Joseph O., Hans-Peter Peipho, and Torben Schulz-Streeck. "A Comparison of Random Forests, Boosting and Support Vector Machines for Genomic Selection." BioMed Central. BMC Proceedings, 27 May 2011. Web. 21 Dec. 2015.
+- Zola, Matteo. "Ensemble Methods: Gradient Boosted Trees." Blog Addfor. N.p., 12 Oct. 2015. Web. 21 Dec. 2015.
+- "Ensemble Methods." Ensemble Methods - Scikit-learn 0.17 Documentation. Scikit-learn Developers, n.d. Web. 21 Dec. 2015.
+- Paruchuri, Vik. "R vs Python: Head to Head Data Analysis." Dataquest Blog. Dataquest, 7 Oct. 2015. Web. 21 Dec. 2015.
+- "Classifying Text with Bag-of-words: A Tutorial." Machine Learning Made Easy. FastML, 6 Aug. 2015. Web. 21 Dec. 2015.
+- "StumbleUpon Evergreen Classification Challenge." What Did You Use? (Forum). Kaggle, StumbleUpon, 11 Jan. 2013. Web. 21 Dec. 2015.
+- "What Is a Zestimate? Zillow's Home Value Forecast." Zestimate. Zillow, n.d. Web. 21 Dec. 2015.
+- "The Accuracy of Real Estate Websites." Redfin. Redfin, n.d. Web. 21 Dec. 2015."
+- "Sklearn.decomposition.TruncatedSVD." Scikit-learn 0.17 Documentation. Scikit-learn Developers, n.d. Web. 21 Dec. 2015.
+- "Scikit-learn 0.17 Documentation." Cross-validation: Evaluating Estimator Performance. Scikit-learn Developers, n.d. Web. 21 Dec. 2015.
+- "Scikit-learn 0.17 Documentation." Sklearn.ensemble.GradientBoostingRegressor. Scikit-learn Developers, n.d. Web. 21 Dec. 2015.
+- "Grid Search: Searching for Estimator Parameters." Scikit-learn 0.17 Documentation. Scikit-learn Developers, n.d. Web. 21 Dec. 2015.
+- "Clustering." Scikit-learn 0.17 Documentation. Scikit-learn Developers, n.d. Web. 21 Dec. 2015.
